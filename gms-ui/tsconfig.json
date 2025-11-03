@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "skipLibCheck": true,   // 你已有这一行，保持即可
+    "types": [],             // 新增：禁止自动扫描隐式库
     "target": "ES2020",
     "module": "ES2020",
     "moduleResolution": "node",

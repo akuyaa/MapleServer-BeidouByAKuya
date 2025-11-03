@@ -19,6 +19,7 @@
 */
 package org.gms.server.expeditions;
 
+import lombok.extern.java.Log;
 import org.gms.config.GameConfig;
 import org.gms.util.DatabaseConnection;
 import org.gms.util.Pair;
@@ -39,14 +40,16 @@ import static java.util.concurrent.TimeUnit.HOURS;
  * @author Conrad
  * @author Ronan
  */
+@Log
 public class ExpeditionBossLog {
 
     public enum BossLogEntry {
-        ZAKUM(2, 1, false),
-        HORNTAIL(2, 1, false),
+        ZAKUM(1, 1, false),
+        HORNTAIL(1, 1, false),
         PINKBEAN(1, 1, false),
         SCARGA(1, 1, false),
-        PAPULATUS(2, 1, false);
+        PAPULATUS(1, 1, false),
+        YAO_SENG(1, 1, false);
 
         private final int entries;
         private final int timeLength;
@@ -165,8 +168,10 @@ public class ExpeditionBossLog {
     }
 
     private static void insertPlayerEntry(int cid, BossLogEntry boss) {
+        String sql = "INSERT INTO " + getBossLogTable(boss.week) + " (characterid, bosstype) VALUES ("+cid+","+boss.name()+")";
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement("INSERT INTO " + getBossLogTable(boss.week) + " (characterid, bosstype) VALUES (?,?)")) {
+            log.info("sql is: "+sql);
             ps.setInt(1, cid);
             ps.setString(2, boss.name());
             ps.executeUpdate();
