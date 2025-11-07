@@ -7,15 +7,15 @@
 var isPq        = true;
 var minPlayers  = 1;        // 开发阶段可先设 1
 var maxPlayers  = 6;
-var minLevel    = 50;
-var maxLevel    = 255;
+var minLevel    = 120;
+var maxLevel    = 200;
 var entryMap    = 702060000;   // 副本地图ID
 var exitMap     = 702070400;   // 退出地图ID
 var recruitMap  = 702070400;
 var clearMap    = 702070400;
 var minMapId    = 702060000;
 var maxMapId    = 702060000;
-var eventTime   = 30;          // 分钟
+var eventTime   = 15;          // 分钟
 const maxLobbies = 1;
 const BOSS_ID   = 9600025;     // 你的妖僧BOSS ID
 
@@ -130,9 +130,10 @@ function isYaoSeng(mob) {
 function monsterKilled(mob, eim) {
     if (isYaoSeng(mob)) {
         print("[YaoSengBattle] Boss YaoSeng killed!");
-        eim.setIntProperty("defeatedBoss", "1");
+        eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
         eim.clearPQ();
+        mob.getMap().broadcastZakumVictory();
     }
 }
 

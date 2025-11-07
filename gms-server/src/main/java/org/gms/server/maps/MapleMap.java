@@ -1374,6 +1374,16 @@ public class MapleMap {
         getWorldServer().dropMessage(6,"[远征凯旋] 长久笼罩天空之城的邪恶之树终于倾倒！" +"致那些历经无数次尝试最终征服扎昆的远征队，胜利属于你们！" +"你们是天空之城真正的传说！");
     }
 
+    // 武林妖僧(YaoSeng)讨伐胜利广播（嵩山少林）
+    public void broadcastYaoSengVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 嵩山少林寺的千年古刹终得清净！致那些历经恶战破除邪咒的远征队，佛光再现！你们是武林真正的正道之光！");
+    }
+
+    // 天皇(TianHuang)讨伐胜利广播（枫城）
+    public void broadcastTianHuangVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 笼罩枫城的黑暗阴云终于散去！致那些浴血奋战最终推翻天皇暴政的远征队，和平重归！你们是枫叶之城真正的守护者！");
+    }
+
     // 品克缤(PinkBean)讨伐胜利广播
     public void broadcastPinkBeanVictory(int channel) {
         getWorldServer().dropMessage(6,"[远征凯旋] 在" + channel + "频道挑战品克缤的远征队，" +  "以雷霆之势完成了终极讨伐！时间神殿重现璀璨光辉，" + "当英雄们从战场凯旋之时，被夺走的白昼终于归来！"

@@ -550,7 +550,15 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                         if (attack.skill == Aran.BODY_PRESSURE) {
                             map.broadcastMessage(PacketCreator.damageMonster(monster.getObjectId(), totDamageToOneMonster));
                         }
-
+                        /* >>>> Zakum 伤害统计埋点 <<<< */
+                        int mid = monster.getId();
+                        if (mid == 8800000 || mid == 8800001 || mid == 8800002 || mid == 8800003) {
+                            var eim = player.getEventInstance();
+                            if (eim != null && eim.getName().startsWith("ZakumBattle")) {
+                                eim.invokeScriptFunction("addDamage", eim, player, (long) totDamageToOneMonster);
+                            }
+                        }
+                        /* ===================================== */
                         map.damageMonster(player, monster, totDamageToOneMonster);
                     }
                     if (monster.isBuffed(MonsterStatus.WEAPON_REFLECT) && !attack.magic) {

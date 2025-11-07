@@ -1,7 +1,7 @@
 // 事件实例化变量
-var isPq = false; // 是否为PQ（Party Quest）类型事件。
+var isPq = true; // 是否为PQ（Party Quest）类型事件。
 var minPlayers = 1, maxPlayers = 6; // 该事件实例允许的队伍成员数量范围。
-var minLevel = 120, maxLevel = 255;     // 合格队伍成员的等级范围。
+var minLevel = 120, maxLevel = 200;     // 合格队伍成员的等级范围。
 var entryMap = 702060000;               // 事件启动时玩家进入的初始地图。
 var exitMap = 702070400;                // 玩家未能完成事件时被传送至此地图。
 var recruitMap = exitMap;             // 玩家必须在此地图上才能开始此事件。
@@ -10,7 +10,7 @@ var clearMap = entryMap;               // 玩家成功完成事件后被传送�
 var minMapId = entryMap;               // 事件发生在此地图ID区间内。若玩家超出此范围则立即从事件中移除。
 var maxMapId = entryMap;
 
-var eventTime = 30;              // 事件的最大允许时间，以分钟计。
+var eventTime = 15;              // 事件的最大允许时间，以分钟计。
 
 const maxLobbies = 1;       // 并发活跃大厅的最大数量。
 
@@ -24,8 +24,8 @@ var BossDropChance = [0.4];                // 掉率
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低120级，最高200级。
+    minLevel = 120 , maxLevel = 200;
 }
 /**
  * 初始化事件，设置事件要求。
@@ -149,12 +149,12 @@ function setup(level, lobbyid) {
             let map = eim.getMapInstance(entryMap);
             map.killAllMonsters();      // 杀死原本地图上的所有怪物
             if(Difficulty) {
-                    level = level <= 0 ? 1 : level; //最小难度为1
+                level = level <= 0 ? 1 : level; //最小难度为1
                 let stats = mob.getStats();
                 let HpMax = mob.getMaxHp() * level;
-                    HpMax = HpMax > 2147483647 ? 2147483647 : HpMax;
+                HpMax = HpMax > 2147483647 ? 2147483647 : HpMax;
                 let MpMax = mob.getMaxMp() * level;
-                    MpMax = MpMax > 2147483647 ? 2147483647 : MpMax;
+                MpMax = MpMax > 2147483647 ? 2147483647 : MpMax;
                 mob.setStartingHp(HpMax);
                 mob.setMp(MpMax);
                 //以下属性似乎没有作用，先留着
@@ -369,7 +369,7 @@ function giveRandomEventReward(eim, player) {
 function clearPQ(eim) {
     eim.stopEventTimer();
     eim.setEventCleared();
-    eim.startEventTimer(2 * 60000);  //2分钟后强制清场
+    eim.startEventTimer(5 * 60000);  //打败BOSS后，时间重置为5分钟后强制清场
 }
 
 /**

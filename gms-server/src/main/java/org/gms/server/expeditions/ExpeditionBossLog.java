@@ -49,7 +49,8 @@ public class ExpeditionBossLog {
         PINKBEAN(1, 1, false),
         SCARGA(1, 1, false),
         PAPULATUS(1, 1, false),
-        YAO_SENG(1, 1, false);
+        YAO_SENG(1, 1, false),
+        TIAN_HUANG(1, 1, false);
 
         private final int entries;
         private final int timeLength;
