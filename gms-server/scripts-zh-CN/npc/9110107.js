@@ -2,6 +2,7 @@
  * 天皇 – 每日限刷 1 次
  * 北斗项目组  @Magical-H
  * 日志版：每一步都打印控制台，方便秒定位
+ * 修复：在创建远征和注册玩家前强制等级检查
  */
 
 var status = 0;
@@ -36,12 +37,15 @@ function action(mode, type, selection) {
             cm.dispose();
             return;
         }
+
+        // ✅ 第一重检查：进入对话时检查等级
         if (status == 0) {
             if (player.getLevel() < exped.getMinLevel() || player.getLevel() > exped.getMaxLevel()) {
-                cm.sendOk("您不符合与" + expedBoss + "战斗的条件！");
+                cm.sendOk("您不符合与" + expedBoss + "战斗的条件！需要等级 " + exped.getMinLevel() + "~" + exped.getMaxLevel());
                 cm.dispose();
                 return;
             }
+
             if (expedition == null) {               // 尚未创建远征
                 print("[NPC 9110107] 无远征，提示创建");
                 cm.sendSimple("#e#b<远征：" + expedName + ">\r\n#k#n" + em.getProperty("party") +
@@ -56,6 +60,13 @@ function action(mode, type, selection) {
                     status = 2;
                 }
             } else if (expedition.isRegistering()) { // 注册阶段
+                // ✅ 第二重检查：注册远征队时检查等级
+                if (player.getLevel() < exped.getMinLevel() || player.getLevel() > exped.getMaxLevel()) {
+                    cm.sendOk("您的等级不符合要求，无法注册到远征队！");
+                    cm.dispose();
+                    return;
+                }
+
                 if (expedition.contains(player)) {
                     cm.sendOk("你已经注册了这次远征。请等待 #r" + expedition.getLeader().getName() + "#k 开始。");
                     cm.dispose();
@@ -80,8 +91,16 @@ function action(mode, type, selection) {
                     cm.dispose();
                     return;
                 }
+
+                // ✅ 第三重检查：创建远征队前再次检查等级
+                if (player.getLevel() < exped.getMinLevel() || player.getLevel() > exped.getMaxLevel()) {
+                    cm.sendOk("您的等级不符合要求，无法创建远征队！");
+                    cm.dispose();
+                    return;
+                }
+
                 var res = cm.createExpedition(exped);
-                print("[NPC 9310039] createExpedition result=" + res);
+                print("[NPC 9110107] createExpedition result=" + res);
                 if (res == 0) {
                     cm.sendOk("#r" + expedBoss + " 远征#k 已经创建。\r\n\r\n再次与我交谈，查看当前队伍，或开始战斗！");
                 } else if (res > 0) {
