@@ -97,7 +97,7 @@ function spawnBoss(eim) {
 
         var pos = new Point(431, 580);
 
-        // ✅ HeavenMS标准方法：自动寻找正确的Foothold
+        // ✅ HeavenMS标准方法：自动寻找正确的Foothold（boss位置控制）
         map.spawnMonsterOnGroundBelow(mob, pos);
 
         print("[SPAWN] Boss " + BOSS_ID_FIRST + " spawned on ground below");

@@ -50,7 +50,9 @@ public class ExpeditionBossLog {
         SCARGA(1, 1, false),
         PAPULATUS(1, 1, false),
         YAO_SENG(1, 1, false),
-        TIAN_HUANG(1, 1, false);
+        TIAN_HUANG(1, 1, false),
+        BALROG_NORMAL(1, 1, false),
+        BALROG_EASY(1, 1, false);
 
         private final int entries;
         private final int timeLength;

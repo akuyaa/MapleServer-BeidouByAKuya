@@ -29,8 +29,8 @@ import org.gms.config.GameConfig;
  */
 
 public enum ExpeditionType {
-    BALROG_EASY(3, 30, 50, 255, 5),
-    BALROG_NORMAL(6, 30, 50, 255, 5),
+    BALROG_EASY(1, 30, 50, 255, 5),
+    BALROG_NORMAL(1, 30, 50, 255, 5),
     SCARGA(6, 30, 100, 255, 5),
     SHOWA(3, 30, 100, 255, 5),
     ZAKUM(6, 30, 50, 255, 5),
