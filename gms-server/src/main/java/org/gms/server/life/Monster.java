@@ -51,6 +51,8 @@ import org.gms.net.server.services.task.channel.OverallService;
 import org.gms.net.server.services.type.ChannelServices;
 import org.gms.net.server.world.Party;
 import org.gms.net.server.world.PartyCharacter;
+import org.gms.server.maps.*;
+import org.gms.server.maps.DamageStatisticsManager;
 import org.gms.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +61,6 @@ import org.gms.server.StatEffect;
 import org.gms.server.TimerManager;
 import org.gms.server.life.LifeFactory.BanishInfo;
 import org.gms.server.loot.LootManager;
-import org.gms.server.maps.AbstractAnimatedMapObject;
-import org.gms.server.maps.MapObjectType;
-import org.gms.server.maps.MapleMap;
-import org.gms.server.maps.Summon;
 
 import java.awt.*;
 import java.lang.ref.WeakReference;
@@ -457,6 +455,10 @@ public class Monster extends AbstractLoadedLife {
      */
     private void applyDamage(Character from, int damage, boolean stayAlive, boolean fake) {
         Integer trueDamage = applyAndGetHpDamage(damage, stayAlive);
+        // 在applyDamage方法中保留（记录伤害）
+        if (from != null) {
+            DamageStatisticsManager.getInstance().recordDamage(from, trueDamage);
+        }
         if (trueDamage == null) {
             return;
         }
@@ -688,7 +690,6 @@ public class Monster extends AbstractLoadedLife {
         for (Character mc : underleveled) {
             mc.showUnderLeveledInfo(this);
         }
-
     }
 
     private float getStatusExpMultiplier(Character attacker, boolean hasPartySharers) {

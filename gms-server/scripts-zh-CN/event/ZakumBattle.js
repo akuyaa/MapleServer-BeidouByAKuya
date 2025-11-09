@@ -1,22 +1,22 @@
 /*
-    This file is part of the HeavenMS MapleStory Server
-    Copyleft (L) 2016 - 2019 RonanLana
+ This file is part of the HeavenMS MapleStory Server
+ Copyleft (L) 2016 - 2019 RonanLana
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation version 3 as published by
-    the Free Software Foundation. You may not use, modify or distribute
-    this program under any other version of the GNU Affero General Public
-    License.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation version 3 as published by
+ the Free Software Foundation. You may not use, modify or distribute
+ this program under any other version of the GNU Affero General Public
+ License.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/ >.
+ */
 
 /**
  * @author: Ronan
@@ -24,8 +24,8 @@
  */
 
 var isPq = true;
-var minPlayers = 6, maxPlayers = 30;
-var minLevel = 50, maxLevel = 255;
+var minPlayers = 2, maxPlayers = 30;
+var minLevel = 50, maxLevel = 200;
 var entryMap = 280030000;
 var exitMap = 211042400;
 var recruitMap = 211042400;
@@ -38,14 +38,28 @@ var eventTime = 120;     // 120 minutes
 
 const maxLobbies = 1;
 
-const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
-}
-
-
+/**
+ * 【修复】将配置读取移到init函数内部
+ */
 function init() {
+    // 读取配置并设置参数
+    try {
+        const GameConfig = Java.type('org.gms.config.GameConfig');
+
+        // 远征队人数限制
+        if (GameConfig.getServerBoolean("use_enable_solo_expeditions")) {
+            minPlayers = 1;
+        }
+
+        // 远征队等级限制
+        if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
+            minLevel = 50;
+            maxLevel = 200;
+        }
+    } catch (e) {
+        log.error("读取配置失败: " + e);
+    }
+
     setEventRequirements();
 }
 
@@ -106,30 +120,55 @@ function setup(channel) {
     eim.setProperty("defeatedBoss", 0);
 
     var level = 1;
-    eim.getInstanceMap(280030000).resetPQ(level);
+    var bossMap = eim.getMapInstance(280030000);
+    bossMap.resetPQ(level);
 
     eim.startEventTimer(eventTime * 60000);
     setEventRewards(eim);
     setEventExclusives(eim);
 
+    // 启用统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().enable();
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().startBroadcastTimer(bossMap);
+    } catch (e) {
+        log.error("启用失败: " + e);
+    }
+
     return eim;
 }
 
-/**
- * 处理玩家进入远征副本事件 - 当玩家进入远征副本时触发
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 进入副本的玩家对象
- * @returns {void}
- * @description 当玩家进入副本时发送系统消息，并将玩家传送到副本入口地图
- */
+function monsterKilled(mob, eim) {
+    if (isZakum(mob)) {
+        eim.setIntProperty("defeatedBoss", 1);
+        eim.showClearEffect(mob.getMap().getId());
+
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().broadcastFinalRanking(mob.getMap());
+        } catch (e) {}
+
+        eim.clearPQ();
+        mob.getMap().broadcastZakumVictory();
+    }
+}
+
+var disposed = false;
+function dispose(eim) {
+    if (disposed) return;
+    disposed = true;
+
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+    } catch (e) {}
+
+    if (!eim.isEventCleared()) {
+        updateGateState(0);
+    }
+}
+
 function playerEntry(eim, player) {
-    // 发送玩家进入副本的系统提示消息
     eim.dropMessage(5, "[远征队] " + player.getName() + " 已进入副本地图。");
-
-    // 获取副本入口地图实例
     var map = eim.getMapInstance(entryMap);
-
-    // 将玩家传送到入口地图的第一个传送点
     player.changeMap(map, map.getPortal(0));
 }
 
@@ -137,18 +176,8 @@ function scheduledTimeout(eim) {
     end(eim);
 }
 
-/**
- * 处理玩家切换地图事件 - 当玩家在远征副本中切换地图时触发
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @param {number} mapid - 玩家切换到的地图ID
- * @returns {void}
- * @description 当玩家切换到副本允许范围外的地图时，执行玩家移除逻辑
- */
 function changedMap(eim, player, mapid) {
-    // 检查地图ID是否超出副本允许范围
     if (mapid < minMapId || mapid > maxMapId) {
-        // 检查是否因玩家退出导致队伍不满足最低人数要求
         partyPlayersCheck(eim, player);
     }
 }
@@ -157,22 +186,10 @@ function changedLeader(eim, leader) {}
 
 function playerDead(eim, player) {}
 
-/**
- * 处理玩家复活事件 - 当玩家在远征副本中复活时触发
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
- */
 function playerRevive(eim, player) {
     partyPlayersCheck(eim, player);
 }
 
-/**
- * 处理玩家断线事件 - 当玩家在远征副本中断开连接时触发
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
- */
 function playerDisconnected(eim, player) {
     partyPlayersCheck(eim, player);
 }
@@ -219,35 +236,17 @@ function isZakum(mob) {
     return (mobid == 8800002);
 }
 
-function monsterKilled(mob, eim) {
-    if (isZakum(mob)) {
-        eim.setIntProperty("defeatedBoss", 1);
-        eim.showClearEffect(mob.getMap().getId());
-        eim.clearPQ();
-
-        mob.getMap().broadcastZakumVictory();
-    }
-}
 
 function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function updateGateState(newState) {    // thanks Conrad for noticing missing gate update
+function updateGateState(newState) {
     em.getChannelServer().getMapFactory().getMap(211042300).getReactorById(2118002).forceHitReactor(newState);
 }
 
-function dispose(eim) {
-    if (!eim.isEventCleared()) {
-        updateGateState(0);
-    }
-}
-/**
- * 检测队伍人数是否满足最低人数要求
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
- */
+
+
 function partyPlayersCheck(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
         eim.unregisterPlayer(player);
@@ -259,4 +258,12 @@ function partyPlayersCheck(eim, player) {
         eim.unregisterPlayer(player);
         return true;
     }
+}
+
+/**
+ * 日志记录辅助函数
+ */
+function log(msg) {
+    var LogHelper = Java.type('org.gms.util.LogHelper');
+    LogHelper.logInfo("[ZakumBattle] " + msg);
 }
