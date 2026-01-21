@@ -21,6 +21,7 @@
 /**
  * @author: Ronan
  * @event: Pink Bean Battle
+ * @modified: 添加伤害统计系统（修复版）
  */
 
 var isPq = true;
@@ -37,10 +38,11 @@ var maxMapId = 270050300;
 var eventTime = 140;     // 140 minutes
 
 const maxLobbies = 1;
+const BOSS_ID_PINK_BEAN = 8820001; // 最终Boss品克缤ID
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
+minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1 , maxLevel = 999;
 }
 
@@ -83,15 +85,15 @@ function setEventExclusives(eim) {
 function setEventRewards(eim) {
     var itemSet, itemQty, evLevel, expStages, mesoStages;
 
-    evLevel = 1;    //Rewards at clear PQ
+    evLevel = 1;
     itemSet = [];
     itemQty = [];
     eim.setEventRewards(evLevel, itemSet, itemQty);
 
-    expStages = [];    //bonus exp given on CLEAR stage signal
+    expStages = [];
     eim.setEventClearStageExp(expStages);
 
-    mesoStages = [];    //bonus meso given on CLEAR stage signal
+    mesoStages = [];
     eim.setEventClearStageMeso(mesoStages);
 }
 
@@ -101,16 +103,18 @@ function afterSetup(eim) {
 }
 
 function setup(channel) {
+    print("[PinkBeanBattle] === setup called on channel " + channel);
+
     var eim = em.newInstance("PinkBean" + channel);
     eim.setProperty("canJoin", 1);
     eim.setProperty("defeatedBoss", 0);
     eim.setProperty("fallenPlayers", 0);
-
     eim.setProperty("stage", 1);
     eim.setProperty("channel", channel);
 
     var level = 1;
-    eim.getInstanceMap(270050100).resetPQ(level);
+    var bossMap = eim.getInstanceMap(270050100);
+    bossMap.resetPQ(level);
     eim.getInstanceMap(270050200).resetPQ(level);
     eim.getInstanceMap(270050300).resetPQ(level);
 
@@ -118,11 +122,21 @@ function setup(channel) {
     const Point = Java.type('java.awt.Point');
     var mob = LifeFactory.getMonster(8820000);
     mob.disableDrops();
-    eim.getInstanceMap(270050100).spawnMonsterOnGroundBelow(mob, new Point(0, -42));
+    bossMap.spawnMonsterOnGroundBelow(mob, new Point(0, -42));
 
     eim.startEventTimer(eventTime * 60000);
     setEventRewards(eim);
     setEventExclusives(eim);
+
+    // ✅ 启用伤害统计
+    try {
+        const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable();
+        DamageStatsMgr.startBroadcastTimer(bossMap);
+        print("[PinkBeanBattle] ✅ 伤害统计已启用");
+    } catch (e) {
+        print("[PinkBeanBattle] ❌ 启用伤害统计失败: " + e);
+    }
 
     return eim;
 }
@@ -134,6 +148,7 @@ function playerEntry(eim, player) {
 }
 
 function scheduledTimeout(eim) {
+    print("[PinkBeanBattle] 副本超时结束");
     end(eim);
 }
 
@@ -254,6 +269,16 @@ function monsterKilled(mob, eim) {
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
         mob.getMap().killAllMonsters();
+
+        // ✅ 广播最终伤害排名（品克缤死亡时）
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+            print("[PinkBeanBattle] ✅ 最终伤害排名已广播");
+        } catch (e) {
+            print("[PinkBeanBattle] ❌ 广播伤害排名失败: " + e);
+        }
+
         eim.clearPQ();
 
         var ch = eim.getIntProperty("channel");
@@ -297,4 +322,12 @@ function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function dispose(eim) {}
+function dispose(eim) {
+    // ✅ 停止伤害统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        print("[PinkBeanBattle] ✅ 伤害统计已停止");
+    } catch (e) {
+        print("[PinkBeanBattle] ❌ 停止伤害统计失败: " + e);
+    }
+}

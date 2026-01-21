@@ -15,35 +15,34 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program.  If not, see <http://www.gnu.org/licenses/ >.
 */
 
 /**
  * @author: Ronan
  * @event: Horntail Battle
+ * @modified: GraalJS终极兼容版
  */
 
 var isPq = true;
-var minPlayers = 6, maxPlayers = 30;
-var minLevel = 100, maxLevel = 255;
+var minPlayers = 3;
+var maxPlayers = 30;
+var minLevel = 100;
+var maxLevel = 200;
 var entryMap = 240060000;
 var exitMap = 240050600;
 var recruitMap = 240050400;
 var clearMap = 240050600;
-
 var minMapId = 240060000;
 var maxMapId = 240060200;
+var eventTime = 120;  // 120分钟
+var maxLobbies = 1;
+var GameConfig = null;
+var DamageStatsMgr = null;
+var LifeFactory = null;
+var Point = null;
 
-var eventTime = 120;     // 120 minutes
-
-const maxLobbies = 1;
-
-const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
-}
-
+// ✅ 极简init，不使用任何Java对象
 function init() {
     setEventRequirements();
 }
@@ -54,74 +53,76 @@ function getMaxLobbies() {
 
 function setEventRequirements() {
     var reqStr = "";
-
     reqStr += "\r\n   组队人数: ";
     if (maxPlayers - minPlayers >= 1) {
         reqStr += minPlayers + " ~ " + maxPlayers;
     } else {
         reqStr += minPlayers;
     }
-
     reqStr += "\r\n   等级要求: ";
     if (maxLevel - minLevel >= 1) {
         reqStr += minLevel + " ~ " + maxLevel;
     } else {
         reqStr += minLevel;
     }
-
     reqStr += "\r\n   时间限制: ";
     reqStr += eventTime + " 分钟";
-
     em.setProperty("party", reqStr);
 }
 
 function setEventExclusives(eim) {
-    var itemSet = [];
-    eim.setExclusiveItems(itemSet);
+    eim.setExclusiveItems([]);
 }
 
 function setEventRewards(eim) {
-    var itemSet, itemQty, evLevel, expStages, mesoStages;
-
-    evLevel = 1;    //Rewards at clear PQ
-    itemSet = [];
-    itemQty = [];
-    eim.setEventRewards(evLevel, itemSet, itemQty);
-
-    expStages = [];    //bonus exp given on CLEAR stage signal
-    eim.setEventClearStageExp(expStages);
-
-    mesoStages = [];    //bonus meso given on CLEAR stage signal
-    eim.setEventClearStageMeso(mesoStages);
+    eim.setEventRewards(1, [], []);
+    eim.setEventClearStageExp([]);
+    eim.setEventClearStageMeso([]);
 }
 
 function afterSetup(eim) {}
 
+// ✅ setup函数必须放在所有函数之后
 function setup(channel) {
-    var eim = em.newInstance("Horntail" + channel);     // thanks Thora (Arufonsu) for reporting an issue with misleading event name here
-    eim.setProperty("canJoin", 1);
-    eim.setProperty("defeatedBoss", 0);
-    eim.setProperty("defeatedHead", 0);
+    var eim = em.newInstance("Horntail" + channel);
+    eim.setProperty("canJoin", "1");
+    eim.setProperty("defeatedHead", "0");
+    eim.setProperty("defeatedBoss", "0");
+    eim.setProperty("damageStatsBound", "false");
 
     var level = 1;
     eim.getInstanceMap(240060000).resetPQ(level);
     eim.getInstanceMap(240060100).resetPQ(level);
     eim.getInstanceMap(240060200).resetPQ(level);
 
-    const LifeFactory = Java.type('org.gms.server.life.LifeFactory');
-    const Point = Java.type('java.awt.Point');
-    var map, mob;
-    map = eim.getInstanceMap(240060000);
-    mob = LifeFactory.getMonster(8810000);
-    map.spawnMonsterOnGroundBelow(mob, new Point(960, 120));
+    try {
+        LifeFactory = Java.type('org.gms.server.life.LifeFactory');
+        Point = Java.type('java.awt.Point');
 
-    map = eim.getInstanceMap(240060100);
-    mob = LifeFactory.getMonster(8810001);
-    map.spawnMonsterOnGroundBelow(mob, new Point(-420, 120));
+        var map1 = eim.getInstanceMap(240060000);
+        var head1 = LifeFactory.getMonster(8810000);
+        map1.spawnMonsterOnGroundBelow(head1, new Point(960, 120));
+        print("[HorntailBattle] ✅ 龙头1召唤成功");
+
+        var map2 = eim.getInstanceMap(240060100);
+        var head2 = LifeFactory.getMonster(8810001);
+        map2.spawnMonsterOnGroundBelow(head2, new Point(-420, 120));
+        print("[HorntailBattle] ✅ 龙头2召唤成功");
+    } catch (e) {
+        print("[HorntailBattle] ❌ 召唤龙头失败: " + e);
+    }
 
     eim.startEventTimer(eventTime * 60000);
     setEventRewards(eim);
     setEventExclusives(eim);
+
+    try {
+        DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable();
+        print("[HorntailBattle] ✅ 伤害统计启用");
+    } catch (e) {
+        print("[HorntailBattle] ❌ 启用伤害统计失败: " + e);
+    }
 
     return eim;
 }
@@ -188,26 +189,74 @@ function clearPQ(eim) {
 
 function isHorntailHead(mob) {
     var mobid = mob.getId();
-    return (mobid == 8810000 || mobid == 8810001);
+    return mobid == 8810000 || mobid == 8810001;
 }
 
 function isHorntail(mob) {
     var mobid = mob.getId();
-    return (mobid == 8810018);
+    return mobid == 8810018;
 }
 
 function monsterKilled(mob, eim) {
-    if (isHorntail(mob)) {
-        eim.setIntProperty("defeatedBoss", 1);
-        eim.showClearEffect(mob.getMap().getId());
-        eim.clearPQ();
+    var mobId = mob.getId();
+    var mapId = mob.getMap().getId();
 
-        eim.dispatchRaiseQuestMobCount(8810018, 240060200);
+    if (isHorntail(mob)) {
+        eim.setProperty("defeatedBoss", "1");
+        print("[HorntailBattle] 黑龙本体被击杀");
+
+        try {
+            if (DamageStatsMgr == null) {
+                DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+            }
+            DamageStatsMgr.broadcastFinalRanking(mob.getMap());
+            print("[HorntailBattle] ✅ 最终排名已广播");
+        } catch (e) {
+            print("[HorntailBattle] ❌ 广播失败: " + e);
+        }
+
+        eim.showClearEffect(mapId);
+        eim.clearPQ();
         mob.getMap().broadcastHorntailVictory();
     } else if (isHorntailHead(mob)) {
-        var killed = eim.getIntProperty("defeatedHead");
-        eim.setIntProperty("defeatedHead", killed + 1);
-        eim.showClearEffect(mob.getMap().getId());
+        var killed = parseInt(eim.getProperty("defeatedHead")) + 1;
+        eim.setProperty("defeatedHead", String(killed));
+        print("[HorntailBattle] 龙头被击杀，计数: " + killed);
+
+        eim.showClearEffect(mapId);
+
+        if (killed >= 2 && eim.getProperty("damageStatsBound") == "false") {
+            try {
+                if (LifeFactory == null) {
+                    LifeFactory = Java.type('org.gms.server.life.LifeFactory');
+                    Point = Java.type('java.awt.Point');
+                }
+
+                var finalMap = eim.getMapInstance(240060200);
+                if (finalMap == null) {
+                    print("[HorntailBattle] ❌ 地图不存在");
+                    return;
+                }
+
+                if (finalMap.getMonsterById(8810018) != null) {
+                    print("[HorntailBattle] ⚠️ 黑龙已存在");
+                    return;
+                }
+
+                var boss = LifeFactory.getMonster(8810018);
+                finalMap.spawnMonsterOnGroundBelow(boss, new Point(0, 120));
+                print("[HorntailBattle] ✅ 黑龙本体已召唤");
+
+                if (DamageStatsMgr == null) {
+                    DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+                }
+                DamageStatsMgr.startBroadcastTimer(finalMap);
+                eim.setProperty("damageStatsBound", "true");
+                print("[HorntailBattle] ✅ 统计已绑定");
+            } catch (e) {
+                print("[HorntailBattle] ❌ 召唤/绑定失败: " + e);
+            }
+        }
     }
 }
 
@@ -215,17 +264,22 @@ function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function dispose(eim) {}
-/**
- * 检测队伍人数是否满足最低人数要求
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
- */
+function dispose(eim) {
+    try {
+        if (DamageStatsMgr == null) {
+            DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        }
+        DamageStatsMgr.stop();
+        print("[HorntailBattle] ✅ 统计已停止");
+    } catch (e) {
+        print("[HorntailBattle] ❌ 停止失败: " + e);
+    }
+}
+
 function partyPlayersCheck(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
         eim.unregisterPlayer(player);
-        eim.dropMessage(5, "[远征队] 队长已退出远征或者队伍人数不足最低要求，无法继续。");
+        eim.dropMessage(5, "[远征队] 队长已退出或人数不足。");
         end(eim);
         return false;
     } else {

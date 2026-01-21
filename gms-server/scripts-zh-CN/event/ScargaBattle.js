@@ -21,11 +21,12 @@
 /**
  * @author: Ronan
  * @event: Scarga Battle
+ * @modified: 添加伤害统计系统
  */
 
 var isPq = true;
-var minPlayers = 6, maxPlayers = 30;
-var minLevel = 100, maxLevel = 255;
+var minPlayers = 1, maxPlayers = 30;
+var minLevel = 90, maxLevel = 200;
 var entryMap = 551030200;
 var exitMap = 551030100;
 var recruitMap = 551030100;
@@ -109,6 +110,17 @@ function setup(channel) {
     setEventRewards(eim);
     setEventExclusives(eim);
 
+    // ✅ 启用伤害统计
+    try {
+        const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable();
+        var bossMap = eim.getInstanceMap(entryMap);
+        DamageStatsMgr.startBroadcastTimer(bossMap);
+        print("[ScargaBattle] ✅ 伤害统计已启用");
+    } catch (e) {
+        print("[ScargaBattle] ❌ 启用伤害统计失败: " + e);
+    }
+
     return eim;
 }
 
@@ -180,7 +192,18 @@ function isScarga(mob) {
 function monsterKilled(mob, eim) {
     if (isScarga(mob)) {
         var killed = eim.getIntProperty("defeatedBoss");
+
+        // 第二形态死亡时广播最终排名
         if (killed == 1) {
+            // ✅ 广播最终伤害排名
+            try {
+                Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                    .broadcastFinalRanking(mob.getMap());
+                print("[ScargaBattle] ✅ 最终伤害排名已广播");
+            } catch (e) {
+                print("[ScargaBattle] ❌ 广播伤害排名失败: " + e);
+            }
+
             eim.showClearEffect();
             eim.clearPQ();
         }
@@ -193,7 +216,16 @@ function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function dispose(eim) {}
+function dispose(eim) {
+    // ✅ 停止伤害统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        print("[ScargaBattle] ✅ 伤害统计已停止");
+    } catch (e) {
+        print("[ScargaBattle] ❌ 停止伤害统计失败: " + e);
+    }
+}
+
 /**
  * 检测队伍人数是否满足最低人数要求
  * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器

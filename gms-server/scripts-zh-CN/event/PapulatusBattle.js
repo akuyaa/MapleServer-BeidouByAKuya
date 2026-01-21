@@ -21,6 +21,7 @@
 /**
  * @author: Ronan
  * @event: Vs Papulatus
+ * @modified: 添加伤害统计系统（扎昆逻辑版）
  */
 
 var isPq = true;
@@ -37,10 +38,11 @@ var maxMapId = 220080001;
 var eventTime = 45;     // 45 minutes
 
 const maxLobbies = 1;
+const BOSS_ID_PAPULATUS = 8500002;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
+minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1 , maxLevel = 999;
 }
 
@@ -83,16 +85,16 @@ function setEventExclusives(eim) {
 function setEventRewards(eim) {
     var itemSet, itemQty, evLevel, expStages;
 
-    evLevel = 1;    //Rewards at clear PQ
+    evLevel = 1;
     itemSet = [];
     itemQty = [];
     eim.setEventRewards(evLevel, itemSet, itemQty);
 
-    expStages = [];    //bonus exp given on CLEAR stage signal
+    expStages = [];
     eim.setEventClearStageExp(expStages);
 }
 
-function getEligibleParty(party) {      //selects, from the given party, the team that is allowed to attempt this event
+function getEligibleParty(party) {
     var eligible = [];
     var hasLeader = false;
 
@@ -122,12 +124,22 @@ function setup(level, lobbyid) {
     eim.setProperty("level", level);
     eim.setProperty("boss", "0");
 
-    eim.getInstanceMap(220080001).resetPQ(level);
+    var map = eim.getInstanceMap(220080001);
+    map.resetPQ(level);
 
     respawnStages(eim);
     eim.startEventTimer(eventTime * 60000);
     setEventRewards(eim);
     setEventExclusives(eim);
+
+    // ✅ 启用伤害统计（扎昆逻辑：setup中直接初始化）
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().enable();
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().startBroadcastTimer(map);
+    } catch (e) {
+        log("启用伤害统计失败: " + e);
+    }
+
     return eim;
 }
 
@@ -174,7 +186,7 @@ function changedLeader(eim, leader) {}
 
 function playerDead(eim, player) {}
 
-function playerRevive(eim, player) { // player presses ok on the death pop up.
+function playerRevive(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
         eim.unregisterPlayer(player);
         end(eim);
@@ -221,11 +233,19 @@ function clearPQ(eim) {
 
 function isPapulatus(mob) {
     var mobid = mob.getId();
-    return mobid == 8500002;
+    return mobid == BOSS_ID_PAPULATUS;
 }
 
 function monsterKilled(mob, eim) {
     if (isPapulatus(mob)) {
+        // ✅ 广播最终伤害排名
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+        } catch (e) {
+            log("广播伤害排名失败: " + e);
+        }
+
         eim.showClearEffect();
         eim.clearPQ();
     }
@@ -235,14 +255,33 @@ function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function updateGateState(newState) {    // thanks Conrad for noticing missing gate update
+function updateGateState(newState) {
     em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208001).forceHitReactor(newState);
     em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208002).forceHitReactor(newState);
     em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208003).forceHitReactor(newState);
 }
 
+var disposed = false;
 function dispose(eim) {
+    if (disposed) return;
+    disposed = true;
+
+    // ✅ 停止伤害统计（扎昆逻辑：简单try-catch）
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+    } catch (e) {
+        log("停止伤害统计失败: " + e);
+    }
+
     if (!eim.isEventCleared()) {
         updateGateState(0);
     }
+}
+
+/**
+ * 日志记录辅助函数
+ */
+function log(msg) {
+    var LogHelper = Java.type('org.gms.util.LogHelper');
+    LogHelper.logInfo("[PapulatusBattle] " + msg);
 }

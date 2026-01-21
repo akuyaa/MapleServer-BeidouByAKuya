@@ -64,12 +64,54 @@ function setup(channel) {
             print("[YaoSengBattle] ❌ entryMap is null! ID=" + entryMap);
             return null;
         }
+
+        // 地图重置（这会刷出WZ预置的怪物）
         map.resetPQ(1);
+
+        // ========== 检测是否已存在BOSS ==========
+        var hasBoss = false;
+        var monsters = map.getAllMonsters();
+        var iter = monsters.iterator();
+
+        while (iter.hasNext()) {
+            var mob = iter.next();
+            if (mob.getId() == BOSS_ID) {
+                hasBoss = true;
+                print("[YaoSengBattle] ✅ Boss already spawned from WZ: " + mob.getObjectId());
+                break;
+            }
+        }
+
+        // 只有WZ没预置时，才手动刷
+        if (!hasBoss) {
+            var boss = em.getMonster(BOSS_ID);
+            if (boss != null) {
+                map.spawnMonsterOnGroundBelow(boss, new java.awt.Point(0, 0));
+                print("[YaoSengBattle] ✅ Boss spawned manually (WZ didn't have one)");
+            } else {
+                print("[YaoSengBattle] ❌ Boss creation failed!");
+                return null;
+            }
+        }
+
+        // 验证最终数量
+        print("[YaoSengBattle] Total monsters on map: " + map.getAllMonsters().size());
+        // ===========================================
 
         eim.startEventTimer(eventTime * 60000);
         setEventRewards(eim);
         setEventExclusives(eim);
         afterSetup(eim);
+
+        // ✅ 启用伤害统计
+        try {
+            const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+            DamageStatsMgr.enable();
+            DamageStatsMgr.startBroadcastTimer(map);
+            print("[YaoSengBattle] ✅ 伤害统计已启用");
+        } catch (e) {
+            print("[YaoSengBattle] ❌ 启用伤害统计失败: " + e);
+        }
 
         print("[YaoSengBattle] ✅ setup success on channel " + channel);
         return eim;
@@ -130,10 +172,20 @@ function isYaoSeng(mob) {
 function monsterKilled(mob, eim) {
     if (isYaoSeng(mob)) {
         print("[YaoSengBattle] Boss YaoSeng killed!");
+
+        // ✅ 广播最终伤害排名（妖僧死亡时）
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+            print("[YaoSengBattle] ✅ 最终伤害排名已广播");
+        } catch (e) {
+            print("[YaoSengBattle] ❌ 广播伤害排名失败: " + e);
+        }
+
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
         eim.clearPQ();
-        mob.getMap().broadcastZakumVictory();
+        mob.getMap().broadcastYaoSengVictory();
     }
 }
 
@@ -166,4 +218,12 @@ function cancelSchedule() {}
 function updateGateState(newState) {}
 function dispose(eim) {
     if (!eim.isEventCleared()) updateGateState(0);
+
+    // ✅ 停止伤害统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        print("[YaoSengBattle] ✅ 伤害统计已停止");
+    } catch (e) {
+        print("[YaoSengBattle] ❌ 停止伤害统计失败: " + e);
+    }
 }

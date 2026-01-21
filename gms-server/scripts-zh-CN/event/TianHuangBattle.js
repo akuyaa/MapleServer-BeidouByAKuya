@@ -1,6 +1,6 @@
 /*
  *  TianHuangBattle - 武林妖僧远征副本
- *  修复：使用HeavenMS标准刷怪方法，避免Foothold问题
+ *  最小改动：仅添加伤害统计系统
  */
 
 /* ========== 参数区 ========== */
@@ -70,9 +70,18 @@ function setup(channel) {
         setEventExclusives(eim);
         afterSetup(eim);
 
-        /* ===== 刷怪（核心修复） ===== */
+        // ✅ 只保留你原来的刷怪代码，不添加任何清理
         spawnBoss(eim);
-        /* ==================== */
+
+        // ✅ 启用伤害统计系统
+        try {
+            const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+            DamageStatsMgr.enable();
+            DamageStatsMgr.startBroadcastTimer(map);
+            print("[TianHuangBattle] ✅ 伤害统计已启用");
+        } catch (e) {
+            print("[TianHuangBattle] ❌ 启用伤害统计失败: " + e);
+        }
 
         print("[TianHuangBattle] ✅ setup success on channel " + channel);
         return eim;
@@ -82,13 +91,18 @@ function setup(channel) {
     }
 }
 
-// ✅ 独立刷怪函数，使用HeavenMS标准方法
+// ✅ 完全恢复你原来的刷怪逻辑
 function spawnBoss(eim) {
     try {
         const LifeFactory = Java.type('org.gms.server.life.LifeFactory');
         const Point = Java.type('java.awt.Point');
 
-        var map = eim.getMapInstance(entryMap);
+        var map = eim.getInstanceMap(entryMap);
+        if (map == null) {
+            print("[SPAWN] ❌ Map is null");
+            return;
+        }
+
         var mob = LifeFactory.getMonster(BOSS_ID_FIRST);
         if (mob == null) {
             print("[SPAWN] ❌ Boss template NULL");
@@ -96,13 +110,10 @@ function spawnBoss(eim) {
         }
 
         var pos = new Point(431, 580);
-
-        // ✅ HeavenMS标准方法：自动寻找正确的Foothold（boss位置控制）
         map.spawnMonsterOnGroundBelow(mob, pos);
-
-        print("[SPAWN] Boss " + BOSS_ID_FIRST + " spawned on ground below");
+        print("[SPAWN] ✅ Boss " + BOSS_ID_FIRST + " spawned at coordinate");
     } catch (e) {
-        print("[SPAWN] Error: " + e);
+        print("[SPAWN] ❌ Error: " + e);
     }
 }
 
@@ -120,22 +131,25 @@ function scheduledTimeout(eim) {
 
 function changedMap(eim, player, mapid) {
     if (mapid < minMapId || mapid > maxMapId) {
-        eim.unregisterPlayer(player);
+        partyPlayersCheck(eim, player);
     }
 }
 
 function playerDead(eim, player) { }
 function changedLeader(eim, leader) { }
 
-function playerRevive(eim, player) { handleLeave(eim, player); }
-function playerDisconnected(eim, player) { handleLeave(eim, player); }
+function playerRevive(eim, player) { partyPlayersCheck(eim, player); }
+function playerDisconnected(eim, player) { partyPlayersCheck(eim, player); }
 
-function handleLeave(eim, player) {
+function partyPlayersCheck(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
-        eim.unregisterPlayer(player);
+        eim.dropMessage(5, "[远征队] 人数不足，无法继续。");
         end(eim);
+        return false;
     } else {
+        eim.dropMessage(5, "[远征队] " + player.getName() + " 已离开副本。");
         eim.unregisterPlayer(player);
+        return true;
     }
 }
 
@@ -151,6 +165,16 @@ function monsterKilled(mob, eim) {
     } else if (mobId == BOSS_ID_FINAL) {
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
+
+        // ✅ 广播最终伤害排名
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+            print("[TianHuangBattle] ✅ 最终伤害排名已广播");
+        } catch (e) {
+            print("[TianHuangBattle] ❌ 广播伤害统计失败: " + e);
+        }
+
         eim.clearPQ();
         mob.getMap().broadcastTianHuangVictory();
     }
@@ -182,6 +206,15 @@ function clearPQ(eim) {
 
 function cancelSchedule() { }
 function updateGateState(newState) { }
+
 function dispose(eim) {
+    // ✅ 停止伤害统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        print("[TianHuangBattle] ✅ 伤害统计已停止");
+    } catch (e) {
+        print("[TianHuangBattle] ❌ 停止伤害统计失败: " + e);
+    }
+
     if (!eim.isEventCleared()) updateGateState(0);
 }

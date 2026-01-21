@@ -1,4 +1,3 @@
-// file: org.gms.server.maps.DamageStatisticsManager.java
 package org.gms.server.maps;
 
 import org.gms.client.Character;
@@ -17,11 +16,24 @@ public class DamageStatisticsManager {
     private static final Logger log = LoggerFactory.getLogger(DamageStatisticsManager.class);
     private static final DamageStatisticsManager instance = new DamageStatisticsManager();
 
-    // 使用Zakum地图ID作为静态Key
-    private static final int ZAKUM_MAP_ID = 280030000;
+    // ✅ 支持多地图
+    private static final Set<Integer> SUPPORTED_MAP_IDS = Set.of(
+            280030000,  // Zakum
+            800040410,  // TianHuang
+            220080001,  // Papulatus
+            270050100,  // PinkBean
+            240060000,  //Horntail
+            240060100,  //Horntail
+            240060200,  //Horntail
+            551030200,  //Scarga
+            702060000   //YaoSeng
+
+    );
+
     private final Map<Integer, Long> damageData = new ConcurrentHashMap<>();
     private ScheduledFuture<?> timer = null;
     private boolean enabled = false;
+    private int currentMapId = -1;
 
     private DamageStatisticsManager() {}
 
@@ -33,11 +45,13 @@ public class DamageStatisticsManager {
         if (enabled) return;
         enabled = true;
         damageData.clear();
-        log.info("Zakum伤害统计已启用");
+        log.info("伤害统计系统已启用"); // ✅ 不是"Zakum伤害统计"
     }
 
-    public void recordDamage(Character attacker, int damage) {
+    // ✅ 接受mapId参数
+    public void recordDamage(Character attacker, int damage, int mapId) {
         if (!enabled || attacker == null || damage <= 0) return;
+        if (currentMapId != mapId) return;
 
         int charId = attacker.getId();
         damageData.merge(charId, (long)damage, Long::sum);
@@ -45,8 +59,15 @@ public class DamageStatisticsManager {
 
     public void startBroadcastTimer(MapleMap map) {
         if (timer != null && !timer.isCancelled()) return;
+        if (map == null) return;
 
-        log.info("启动Zakum伤害统计定时器");
+        this.currentMapId = map.getId();
+        if (!SUPPORTED_MAP_IDS.contains(currentMapId)) {
+            log.warn("地图ID {} 不受支持", currentMapId);
+            return;
+        }
+
+        log.info("启动伤害统计定时器 - 地图: {}", currentMapId);
 
         timer = TimerManager.getInstance().register(() -> {
             try {
@@ -58,8 +79,7 @@ public class DamageStatisticsManager {
     }
 
     private void broadcastRanking(MapleMap map) {
-        if (map == null || map.getId() != ZAKUM_MAP_ID) return;
-
+        if (map == null || !SUPPORTED_MAP_IDS.contains(map.getId())) return;
         if (damageData.isEmpty()) return;
 
         NumberFormat nf = NumberFormat.getInstance();
@@ -76,20 +96,19 @@ public class DamageStatisticsManager {
         if (rankings.isEmpty()) return;
 
         StringBuilder sb = new StringBuilder();
-        sb.append("#r【副本伤害统计】#k\r\n");
+        sb.append("#b【伤害统计】\r\n");
         int rank = 1;
         for (Map.Entry<Character, Long> entry : rankings) {
             sb.append("#b").append(rank++).append(". ")
                     .append(entry.getKey().getName()).append(": ")
-                    .append(nf.format(entry.getValue())).append("#k\r\n");
+                    .append(nf.format(entry.getValue())).append("\r\n");
         }
 
-        map.broadcastMessage(PacketCreator.serverNotice(6, sb.toString()));
+        map.broadcastMessage(PacketCreator.serverNotice(5, sb.toString()));
     }
 
     public void broadcastFinalRanking(MapleMap map) {
-        if (map == null || map.getId() != ZAKUM_MAP_ID) return;
-
+        if (map == null || !SUPPORTED_MAP_IDS.contains(map.getId())) return;
         if (damageData.isEmpty()) return;
 
         NumberFormat nf = NumberFormat.getInstance();
@@ -106,22 +125,21 @@ public class DamageStatisticsManager {
         if (rankings.isEmpty()) return;
 
         StringBuilder sb = new StringBuilder();
-        sb.append("#r【最终伤害排名】#k\r\n");
+        sb.append("#b【最终伤害排名】\r\n");
         int rank = 1;
         for (Map.Entry<Character, Long> entry : rankings) {
-            sb.append("#e").append(rank++).append(". ")
+            sb.append("#b").append(rank++).append(". ")
                     .append(entry.getKey().getName()).append(": ")
-                    .append(nf.format(entry.getValue())).append("#n\r\n");
+                    .append(nf.format(entry.getValue())).append("\r\n");
         }
 
-        map.broadcastMessage(PacketCreator.serverNotice(0, sb.toString()));
+        map.broadcastMessage(PacketCreator.serverNotice(5, sb.toString()));
     }
 
     public void stop() {
         if (!enabled) return;
         enabled = false;
-
-        log.info("Zakum伤害统计已停止");
+        currentMapId = -1;
 
         if (timer != null) {
             timer.cancel(false);
@@ -129,5 +147,6 @@ public class DamageStatisticsManager {
         }
 
         damageData.clear();
+        log.info("伤害统计已停止");
     }
 }
