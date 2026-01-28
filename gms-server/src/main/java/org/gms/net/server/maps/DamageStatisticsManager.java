@@ -26,7 +26,9 @@ public class DamageStatisticsManager {
             240060100,  //Horntail
             240060200,  //Horntail
             551030200,  //Scarga
-            702060000   //YaoSeng
+            702060000,  //YaoSeng
+            801040100,   //ShoWa
+            801040101   //ShoWa
 
     );
 

@@ -21,11 +21,12 @@
 /**
  * @author: Ronan
  * @event: Showa Boss Battle
+ * @modified: 添加伤害统计系统
  */
 
 var isPq = true;
-var minPlayers = 3, maxPlayers = 30;
-var minLevel = 100, maxLevel = 255;
+var minPlayers = 2, maxPlayers = 30;
+var minLevel = 100, maxLevel = 200;
 var entryMap = 801040100;
 var exitMap = 801040004;
 var recruitMap = 801040004;
@@ -37,15 +38,16 @@ var maxMapId = 801040101;
 var eventTime = 60;     // 60 minutes for boss stg
 
 const maxLobbies = 1;
+const BOSS_ID = 9400300; // 大头头Boss ID
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
+minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1 , maxLevel = 999;
 }
 
-
 function init() {
+    print("[ShowaBattle] init() called");
     setEventRequirements();
 }
 
@@ -74,6 +76,7 @@ function setEventRequirements() {
     reqStr += eventTime + " 分钟";
 
     em.setProperty("party", reqStr);
+    print("[ShowaBattle] Requirements set: " + reqStr);
 }
 
 function setEventExclusives(eim) {
@@ -84,39 +87,53 @@ function setEventExclusives(eim) {
 function setEventRewards(eim) {
     var itemSet, itemQty, evLevel, expStages, mesoStages;
 
-    evLevel = 1;    //Rewards at clear PQ
+    evLevel = 1;
     itemSet = [1102145, 1102084, 1102085, 1102086, 1102087, 1052165, 1052166, 1052167, 1402013, 1332030, 1032030, 1032070, 4003000, 4000030, 4006000, 4006001, 4005000, 4005001, 4005002, 4005003, 4005004, 2022016, 2022263, 2022264, 2022015, 2022306, 2022307, 2022306, 2022113];
     itemQty = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 40, 40, 100, 100, 2, 2, 2, 2, 1, 100, 100, 100, 40, 40, 40, 40, 40];
     eim.setEventRewards(evLevel, itemSet, itemQty);
 
-    expStages = [];    //bonus exp given on CLEAR stage signal
+    expStages = [];
     eim.setEventClearStageExp(expStages);
 
-    mesoStages = [];    //bonus meso given on CLEAR stage signal
+    mesoStages = [];
     eim.setEventClearStageMeso(mesoStages);
 }
 
-function afterSetup(eim) {}
+function afterSetup(eim) {
+    print("[ShowaBattle] afterSetup finished");
+}
 
 function setup(channel) {
+    print("[ShowaBattle] === setup called on channel " + channel);
+
     var eim = em.newInstance("Showa" + channel);
     eim.setProperty("canJoin", 1);
     eim.setProperty("playerDied", 0);
 
     var level = 1;
-    eim.getInstanceMap(801040100).resetPQ(level);
+    var bossMap = eim.getInstanceMap(801040100);
+    bossMap.resetPQ(level);
 
     respawnStages(eim);
     eim.startEventTimer(eventTime * 60000);
     setEventRewards(eim);
     setEventExclusives(eim);
 
+    // ✅ 启用伤害统计（绑定主战斗地图）
+    try {
+        const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable();
+        DamageStatsMgr.startBroadcastTimer(bossMap);
+        print("[ShowaBattle] ✅ 伤害统计已启用");
+    } catch (e) {
+        print("[ShowaBattle] ❌ 启用伤害统计失败: " + e);
+    }
+
     return eim;
 }
 
 function respawnStages(eim) {
     eim.getInstanceMap(801040100).instanceMapRespawn();
-
     eim.schedule("respawnStages", 15 * 1000);
 }
 
@@ -127,6 +144,7 @@ function playerEntry(eim, player) {
 }
 
 function scheduledTimeout(eim) {
+    print("[ShowaBattle] 副本超时结束");
     end(eim);
 }
 
@@ -149,7 +167,6 @@ function playerRevive(eim, player) {
 function playerDisconnected(eim, player) {
     partyPlayersCheck(eim, player);
 }
-
 
 function leftParty(eim, player) {}
 
@@ -180,7 +197,6 @@ function giveRandomEventReward(eim, player) {
 
 function clearPQ(eim) {
     eim.getInstanceMap(801040100).killAllMonsters();
-
     eim.stopEventTimer();
     eim.setEventCleared();
 
@@ -192,12 +208,22 @@ function clearPQ(eim) {
 }
 
 function isTheBoss(mob) {
-    return mob.getId() == 9400300;
+    return mob.getId() == BOSS_ID;
 }
 
 function monsterKilled(mob, eim) {
     if (isTheBoss(mob)) {
         eim.showClearEffect();
+
+        // ✅ 广播最终伤害排名（Boss死亡时）
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+            print("[ShowaBattle] ✅ 最终伤害排名已广播");
+        } catch (e) {
+            print("[ShowaBattle] ❌ 广播伤害排名失败: " + e);
+        }
+
         eim.clearPQ();
     }
 }
@@ -206,12 +232,18 @@ function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
-function dispose(eim) {}
+function dispose(eim) {
+    // ✅ 停止伤害统计
+    try {
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        print("[ShowaBattle] ✅ 伤害统计已停止");
+    } catch (e) {
+        print("[ShowaBattle] ❌ 停止伤害统计失败: " + e);
+    }
+}
+
 /**
  * 检测队伍人数是否满足最低人数要求
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
  */
 function partyPlayersCheck(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
