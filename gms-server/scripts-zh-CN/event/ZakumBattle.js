@@ -143,6 +143,30 @@ function monsterKilled(mob, eim) {
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
 
+        // ✅ 发放黄金枫叶奖励（15-25个随机）
+        try {
+            var party = eim.getPlayers();
+            const ITEM_ID = 4000313; // 黄金枫叶
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                // 随机15-25个 (15 + 0~10)
+                var qty = 15 + Math.floor(Math.random() * 11);
+
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    ITEM_ID,    // 物品ID
+                    qty,        // 数量
+                    false,      // 是否广播
+                    true        // 是否显示获得提示
+                );
+
+                player.dropMessage(5, "[扎昆] 获得 " + qty + " 个黄金枫叶！");
+            }
+            print("已发放随机黄金枫叶奖励(15-25个)给 " + party.size() + " 名玩家");
+        } catch (e) {
+            print("发放奖励失败: " + e);
+        }
+
         try {
             Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().broadcastFinalRanking(mob.getMap());
         } catch (e) {}
@@ -151,7 +175,6 @@ function monsterKilled(mob, eim) {
         mob.getMap().broadcastZakumVictory();
     }
 }
-
 var disposed = false;
 function dispose(eim) {
     if (disposed) return;

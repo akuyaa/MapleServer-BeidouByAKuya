@@ -15,13 +15,13 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program.  If not, see <http://www.gnu.org/licenses/ >.
 */
 
 /**
  * @author: Ronan
  * @event: Scarga Battle
- * @modified: 添加伤害统计系统
+ * @modified: 添加伤害统计系统 + 黄金枫叶奖励
  */
 
 var isPq = true;
@@ -40,8 +40,8 @@ var eventTime = 60;     // 60 minutes for boss stg
 const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
-minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
+minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1 , maxLevel = 999;
 }
 
@@ -84,15 +84,15 @@ function setEventExclusives(eim) {
 function setEventRewards(eim) {
     var itemSet, itemQty, evLevel, expStages, mesoStages;
 
-    evLevel = 1;    //Rewards at clear PQ
+    evLevel = 1;
     itemSet = [1102145, 1102084, 1102085, 1102086, 1102087, 1052165, 1052166, 1052167, 1402013, 1332030, 1032030, 1032070, 4003000, 4000030, 4006000, 4006001, 4005000, 4005001, 4005002, 4005003, 4005004, 2022016, 2022263, 2022264, 2022015, 2022306, 2022307, 2022306, 2022113];
     itemQty = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 50, 50, 120, 120, 4, 4, 4, 4, 2, 125, 125, 125, 30, 30, 30, 30, 30];
     eim.setEventRewards(evLevel, itemSet, itemQty);
 
-    expStages = [];    //bonus exp given on CLEAR stage signal
+    expStages = [];
     eim.setEventClearStageExp(expStages);
 
-    mesoStages = [];    //bonus meso given on CLEAR stage signal
+    mesoStages = [];
     eim.setEventClearStageMeso(mesoStages);
 }
 
@@ -193,8 +193,32 @@ function monsterKilled(mob, eim) {
     if (isScarga(mob)) {
         var killed = eim.getIntProperty("defeatedBoss");
 
-        // 第二形态死亡时广播最终排名
+        // 第二形态死亡时发放奖励并广播最终排名
         if (killed == 1) {
+            // ✅ 发放黄金枫叶奖励（15-25个随机）
+            try {
+                var party = eim.getPlayers();
+                const ITEM_ID = 4000313; // 黄金枫叶
+
+                for (var i = 0; i < party.size(); i++) {
+                    var player = party.get(i);
+                    // 随机15-25个 (15 + 0~10)
+                    var qty = 15 + Math.floor(Math.random() * 11);
+
+                    player.getClient().getAbstractPlayerInteraction().gainItem(
+                        ITEM_ID,    // 物品ID
+                        qty,        // 数量
+                        false,      // 是否广播
+                        true        // 是否显示获得提示
+                    );
+
+                    player.dropMessage(5, "[Scarga Boss] 获得 " + qty + " 个黄金枫叶！");
+                }
+                print("[ScargaBattle] 已发放黄金枫叶奖励给 " + party.size() + " 名玩家");
+            } catch (e) {
+                print("[ScargaBattle] ❌ 发放奖励失败: " + e);
+            }
+
             // ✅ 广播最终伤害排名
             try {
                 Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
@@ -228,9 +252,6 @@ function dispose(eim) {
 
 /**
  * 检测队伍人数是否满足最低人数要求
- * @param {ExpeditionInstanceManager} eim - 远征副本实例管理器
- * @param {Player} player - 触发事件的玩家对象
- * @returns {void}
  */
 function partyPlayersCheck(eim, player) {
     if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {

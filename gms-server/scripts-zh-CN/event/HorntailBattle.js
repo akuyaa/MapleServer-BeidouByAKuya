@@ -188,6 +188,30 @@ function monsterKilled(mob, eim) {
     if (isHorntail(mob)) {
         eim.setProperty("defeatedBoss", "1");
 
+        // ✅ 发放黄金枫叶奖励（30-50个随机）
+        try {
+            var party = eim.getPlayers();
+            const ITEM_ID = 4000313; // 黄金枫叶
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                // 随机30-50个 (30 + 0~20)
+                var qty = 30 + Math.floor(Math.random() * 21);
+
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    ITEM_ID,    // 物品ID
+                    qty,        // 数量
+                    false,      // 是否广播
+                    true        // 是否显示获得提示
+                );
+
+                player.dropMessage(5, "[暗黑龙王] 获得 " + qty + " 个黄金枫叶！");
+            }
+            print("[HorntailBattle] 已发放随机黄金枫叶奖励(30-50个)给 " + party.size() + " 名玩家");
+        } catch (e) {
+            print("[HorntailBattle] ❌ 发放奖励失败: " + e);
+        }
+
         // ✅ 广播最终伤害排名（黑龙死亡时）
         try {
             var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();

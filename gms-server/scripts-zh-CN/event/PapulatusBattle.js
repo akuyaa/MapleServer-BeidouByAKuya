@@ -15,16 +15,16 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program.  If not, see <http://www.gnu.org/licenses/ >.
 */
 
 /**
  * @author: Ronan
  * @event: Vs Papulatus
- * @modified: 添加伤害统计系统（扎昆逻辑版）
+ * @modified: 改为远征队类型，每日限制1次 + 黄金枫叶奖励(2-8个)
  */
 
-var isPq = true;
+var isPq = true; // 保持true，但使用远征队逻辑
 var minPlayers = 1, maxPlayers = 6;
 var minLevel = 1, maxLevel = 255;
 var entryMap = 220080001;
@@ -40,6 +40,7 @@ var eventTime = 45;     // 45 minutes
 const maxLobbies = 1;
 const BOSS_ID_PAPULATUS = 8500002;
 
+// ✅ 远征队配置（参考扎昆）
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
 if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
@@ -132,12 +133,13 @@ function setup(level, lobbyid) {
     setEventRewards(eim);
     setEventExclusives(eim);
 
-    // ✅ 启用伤害统计（扎昆逻辑：setup中直接初始化）
+    // ✅ 启用伤害统计
     try {
         Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().enable();
         Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().startBroadcastTimer(map);
+        print("[PapulatusBattle] 伤害统计已启用");
     } catch (e) {
-        log("启用伤害统计失败: " + e);
+        print("[PapulatusBattle] 启用失败: " + e);
     }
 
     return eim;
@@ -150,6 +152,7 @@ function afterSetup(eim) {
 function respawnStages(eim) {}
 
 function playerEntry(eim, player) {
+    eim.dropMessage(5, "[远征队] " + player.getName() + " 已进入副本地图。");
     var map = eim.getMapInstance(entryMap);
     player.changeMap(map, map.getPortal(0));
 }
@@ -158,7 +161,12 @@ function scheduledTimeout(eim) {
     end(eim);
 }
 
-function playerUnregistered(eim, player) {}
+function playerUnregistered(eim, player) {
+    // ✅ 关键：每日限制1次逻辑（参考扎昆）
+    if (eim.isEventCleared()) {
+        em.completeQuest(player, 100201, 2041025); // Papulatus任务ID，NPCID可根据需要调整
+    }
+}
 
 function playerExit(eim, player) {
     eim.unregisterPlayer(player);
@@ -173,12 +181,8 @@ function playerLeft(eim, player) {
 
 function changedMap(eim, player, mapid) {
     if (mapid < minMapId || mapid > maxMapId) {
-        if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
-            eim.unregisterPlayer(player);
-            end(eim);
-        } else {
-            eim.unregisterPlayer(player);
-        }
+        // ✅ 改为远征队检查逻辑（参考扎昆）
+        partyPlayersCheck(eim, player, true); // true表示需要结束副本
     }
 }
 
@@ -187,21 +191,13 @@ function changedLeader(eim, leader) {}
 function playerDead(eim, player) {}
 
 function playerRevive(eim, player) {
-    if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
-        eim.unregisterPlayer(player);
-        end(eim);
-    } else {
-        eim.unregisterPlayer(player);
-    }
+    // ✅ 改为远征队检查逻辑
+    partyPlayersCheck(eim, player, true);
 }
 
 function playerDisconnected(eim, player) {
-    if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
-        eim.unregisterPlayer(player);
-        end(eim);
-    } else {
-        eim.unregisterPlayer(player);
-    }
+    // ✅ 改为远征队检查逻辑
+    partyPlayersCheck(eim, player, true);
 }
 
 function leftParty(eim, player) {}
@@ -214,7 +210,6 @@ function monsterValue(eim, mobId) {
 
 function end(eim) {
     var party = eim.getPlayers();
-
     for (var i = 0; i < party.size(); i++) {
         playerExit(eim, party.get(i));
     }
@@ -238,27 +233,77 @@ function isPapulatus(mob) {
 
 function monsterKilled(mob, eim) {
     if (isPapulatus(mob)) {
+        // ✅ 发放黄金枫叶奖励（2-8个随机）
+        try {
+            var party = eim.getPlayers();
+            const ITEM_ID = 4000313; // 黄金枫叶
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                var qty = 2 + Math.floor(Math.random() * 7); // 随机2-8个
+
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    ITEM_ID, qty, false, true
+                );
+                player.dropMessage(5, "[帕普拉图斯] 获得 " + qty + " 个黄金枫叶！");
+            }
+            print("[PapulatusBattle] 已发放奖励给 " + party.size() + " 名玩家");
+        } catch (e) {
+            print("[PapulatusBattle] 发放奖励失败: " + e);
+        }
+
+        // ✅ 记录bosslog_daily（关键修改：从playerUnregistered移到这里）
+        try {
+            const DatabaseConnection = Java.type('org.gms.util.DatabaseConnection');
+            var con = DatabaseConnection.getConnection();
+            var party = eim.getPlayers();
+            var count = 0;
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                try {
+                    var ps = con.prepareStatement("INSERT INTO bosslog_daily (characterid, bosstype) VALUES (?, 'PAPULATUS')");
+                    ps.setInt(1, player.getId());
+                    ps.executeUpdate();
+                    ps.close();
+                    count++;
+                    print("[PapulatusBattle] 已记录通关 - 角色: " + player.getName() + " (ID:" + player.getId() + ")");
+                } catch (sqlEx) {
+                    // 可能是重复记录（主键冲突），忽略
+                    print("[PapulatusBattle] 记录玩家 " + player.getName() + " 失败(可能已记录): " + sqlEx);
+                }
+            }
+            con.close();
+            print("[PapulatusBattle] 成功记录 " + count + " 名玩家到bosslog_daily");
+        } catch (e) {
+            print("[PapulatusBattle] ❌ 连接数据库失败: " + e);
+        }
+
         // ✅ 广播最终伤害排名
         try {
             Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
                 .broadcastFinalRanking(mob.getMap());
-        } catch (e) {
-            log("广播伤害排名失败: " + e);
-        }
+        } catch (e) {}
 
         eim.showClearEffect();
         eim.clearPQ();
     }
 }
 
+
+
 function allMonstersDead(eim) {}
 
 function cancelSchedule() {}
 
 function updateGateState(newState) {
-    em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208001).forceHitReactor(newState);
-    em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208002).forceHitReactor(newState);
-    em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208003).forceHitReactor(newState);
+    try {
+        em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208001).forceHitReactor(newState);
+        em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208002).forceHitReactor(newState);
+        em.getChannelServer().getMapFactory().getMap(220080000).getReactorById(2208003).forceHitReactor(newState);
+    } catch (e) {
+        print("[PapulatusBattle] 更新门状态失败: " + e);
+    }
 }
 
 var disposed = false;
@@ -266,22 +311,27 @@ function dispose(eim) {
     if (disposed) return;
     disposed = true;
 
-    // ✅ 停止伤害统计（扎昆逻辑：简单try-catch）
     try {
         Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
-    } catch (e) {
-        log("停止伤害统计失败: " + e);
-    }
+    } catch (e) {}
 
     if (!eim.isEventCleared()) {
         updateGateState(0);
     }
 }
 
-/**
- * 日志记录辅助函数
- */
-function log(msg) {
-    var LogHelper = Java.type('org.gms.util.LogHelper');
-    LogHelper.logInfo("[PapulatusBattle] " + msg);
+// ✅ 新增：远征队人数检查函数（完全参考扎昆逻辑）
+function partyPlayersCheck(eim, player, endOnLack) {
+    if (eim.isExpeditionTeamLackingNow(true, minPlayers, player)) {
+        eim.unregisterPlayer(player);
+        if (endOnLack) {
+            eim.dropMessage(5, "[远征队] 队长已退出远征或者队伍人数不足最低要求，无法继续。");
+            end(eim);
+        }
+        return false;
+    } else {
+        eim.dropMessage(5, "[远征队] " + player.getName() + " 已离开副本。");
+        eim.unregisterPlayer(player);
+        return true;
+    }
 }

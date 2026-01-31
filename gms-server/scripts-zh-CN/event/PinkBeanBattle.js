@@ -214,6 +214,7 @@ function monsterValue(eim, mobId) {
 
 function playerUnregistered(eim, player) {}
 
+
 function playerExit(eim, player) {
     eim.unregisterPlayer(player);
     player.changeMap(exitMap, 0);
@@ -251,9 +252,15 @@ function noJrBossesLeft(map) {
 }
 
 function spawnJrBoss(mobObj, gotKilled) {
+    // ✅ 增加 null 检查
+    if (mobObj == null) {
+        print("[PinkBeanBattle] Warning: spawnJrBoss called with null mobObj");
+        return;
+    }
+
+    var spawnid;
     if (gotKilled) {
         spawnid = mobObj.getId() + 17;
-
     } else {
         mobObj.getMap().killMonster(mobObj.getId());
         spawnid = mobObj.getId() - 17;
@@ -264,11 +271,67 @@ function spawnJrBoss(mobObj, gotKilled) {
     mobObj.getMap().spawnMonsterOnGroundBelow(mob, mobObj.getPosition());
 }
 
+function startWave(eim) {
+    var mapObj = eim.getMapInstance(270050100);
+    var stage = eim.getIntProperty("stage"); // ✅ 改为 getIntProperty
+
+    for (var i = 1; i <= stage; i++) {
+        var mobId = 8820019 + (i % 5);
+        var mobObj = mapObj.getMonsterById(mobId);
+
+        // ✅ 增加 null 检查
+        if (mobObj != null) {
+            spawnJrBoss(mobObj, false);
+        } else {
+            print("[PinkBeanBattle] Warning: Monster " + mobId + " not found in wave stage " + stage);
+        }
+    }
+}
 function monsterKilled(mob, eim) {
     if (isPinkBean(mob)) {
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
         mob.getMap().killAllMonsters();
+
+        // ✅ 发放随机奖励（1-5给奖牌，6-100给100个黄金枫叶）
+        try {
+            var party = eim.getPlayers();
+            const ITEM_ID_MAPLE_LEAF = 4000313; // 黄金枫叶
+            const ITEM_ID_MEDAL = 1142742;      // 冒险岛奖牌
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                // 生成1-100的随机数（包含1和100）
+                var randomNum = Math.floor(Math.random() * 100) + 1;
+
+                // 控制台打印该玩家的随机数
+                print("[PinkBeanBattle] 玩家 [" + player.getName() + "] 获得随机数: " + randomNum);
+
+                if (randomNum >= 1 && randomNum <= 5) {
+                    // 1-5：给予冒险岛奖牌（稀有奖励）
+                    player.getClient().getAbstractPlayerInteraction().gainItem(
+                        ITEM_ID_MEDAL,
+                        1,
+                        false,
+                        true
+                    );
+                    player.dropMessage(5, "[品克缤] 大吉大利！你获得了稀有奖励：冒险岛奖牌！（幸运数字：" + randomNum + "）");
+                    print("[PinkBeanBattle] 玩家 [" + player.getName() + "] 获得稀有奖励：冒险岛奖牌");
+                } else {
+                    // 6-100：给予50个黄金枫叶
+                    player.getClient().getAbstractPlayerInteraction().gainItem(
+                        ITEM_ID_MAPLE_LEAF,
+                        50,
+                        false,
+                        true
+                    );
+                    player.dropMessage(5, "[品克缤] 获得 50 个黄金枫叶！（数字：" + randomNum + "）");
+                    print("[PinkBeanBattle] 玩家 [" + player.getName() + "] 获得 50 个黄金枫叶");
+                }
+            }
+        } catch (e) {
+            print("[PinkBeanBattle] ❌ 发放奖励失败: " + e);
+        }
 
         // ✅ 广播最终伤害排名（品克缤死亡时）
         try {
@@ -295,7 +358,6 @@ function monsterKilled(mob, eim) {
                 var reactObj = mapObj.getReactorById(2708000);
                 var dropper = eim.getPlayers().get(0);
                 mapObj.spawnItemDrop(dropper, dropper, itemObj, reactObj.getPosition(), true, true);
-
 
                 eim.dropMessage(6, "随着最后的守护者倒下，品克缤失去了无敌状态。真正的战斗现在开始！");
             } else {

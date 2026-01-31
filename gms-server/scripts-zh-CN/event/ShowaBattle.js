@@ -195,6 +195,82 @@ function giveRandomEventReward(eim, player) {
     eim.giveEventReward(player);
 }
 
+// function clearPQ(eim) {
+//     eim.getInstanceMap(801040100).killAllMonsters();
+//     eim.stopEventTimer();
+//     eim.setEventCleared();
+
+//     if (eim.getIntProperty("playerDied") == 0) {
+//         var mob = eim.getMonster(9400114);
+//         eim.getMapInstance(801040101).spawnMonsterOnGroundBelow(mob, new java.awt.Point(500, -50));
+//         eim.dropMessage(5, "康培：Boss已被击败且无人员伤亡，干得漂亮！我们在里面发现了一台可疑的机器，正在将它移出。");
+//     }
+// }
+
+function monsterKilled(mob, eim) {
+    if (isTheBoss(mob)) {
+        eim.showClearEffect();
+
+        // ✅ 给所有队员发放30-50个随机数量黄金枫叶
+        try {
+            var party = eim.getPlayers();
+            const ITEM_ID = 4000313; // 黄金枫叶
+
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                // 随机30-50个 (30 + 0~20)
+                var qty = 30 + Math.floor(Math.random() * 21);
+
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    ITEM_ID,    // 物品ID
+                    qty,        // 数量
+                    false,      // 是否广播
+                    true        // 是否显示获得提示
+                );
+
+                player.dropMessage(5, "[Showa Boss] 获得 " + qty + " 个黄金枫叶！");
+            }
+            print("[ShowaBattle] 已发放随机黄金枫叶奖励(30-50个)给 " + party.size() + " 名玩家");
+        } catch (e) {
+            print("[ShowaBattle] ❌ 发放奖励失败: " + e);
+
+            // 备用方案：地图掉落
+            try {
+                var map = eim.getMapInstance(801040101);
+                const Item = Java.type('org.gms.client.inventory.Item');
+
+                var qty = 30 + Math.floor(Math.random() * 21);
+                var item = new Item(4000313, 0, qty);
+
+                map.spawnItemDrop(
+                    mob,
+                    null,
+                    item,
+                    new java.awt.Point(500, -50),
+                    true,
+                    true
+                );
+
+                eim.dropMessage(6, "[Showa Boss] 击败奖励(" + qty + "个黄金枫叶)已掉落在地图中央！");
+                print("[ShowaBattle] 已使用备用方案地图掉落 " + qty + " 个奖励");
+            } catch (e2) {
+                print("[ShowaBattle] 备用方案也失败: " + e2);
+            }
+        }
+
+        // ✅ 广播最终伤害排名
+        try {
+            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+                .broadcastFinalRanking(mob.getMap());
+            print("[ShowaBattle] ✅ 最终伤害排名已广播");
+        } catch (e) {
+            print("[ShowaBattle] ❌ 广播伤害排名失败: " + e);
+        }
+
+        eim.clearPQ();
+    }
+}
+
 function clearPQ(eim) {
     eim.getInstanceMap(801040100).killAllMonsters();
     eim.stopEventTimer();
@@ -211,22 +287,22 @@ function isTheBoss(mob) {
     return mob.getId() == BOSS_ID;
 }
 
-function monsterKilled(mob, eim) {
-    if (isTheBoss(mob)) {
-        eim.showClearEffect();
+// function monsterKilled(mob, eim) {
+//     if (isTheBoss(mob)) {
+//         eim.showClearEffect();
 
-        // ✅ 广播最终伤害排名（Boss死亡时）
-        try {
-            Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
-                .broadcastFinalRanking(mob.getMap());
-            print("[ShowaBattle] ✅ 最终伤害排名已广播");
-        } catch (e) {
-            print("[ShowaBattle] ❌ 广播伤害排名失败: " + e);
-        }
+//         // ✅ 广播最终伤害排名（Boss死亡时）
+//         try {
+//             Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
+//                 .broadcastFinalRanking(mob.getMap());
+//             print("[ShowaBattle] ✅ 最终伤害排名已广播");
+//         } catch (e) {
+//             print("[ShowaBattle] ❌ 广播伤害排名失败: " + e);
+//         }
 
-        eim.clearPQ();
-    }
-}
+//         eim.clearPQ();
+//     }
+// }
 
 function allMonstersDead(eim) {}
 
