@@ -47,7 +47,7 @@ public class OnlineTimeTask implements Runnable {
                     chr.getAbstractPlayerInteraction().saveOrUpdateAccountExtendValue("每日在线奖励领取状态", "0", true);
 
                 } else if (currentOnlineTime == -1) {
-                    // ========== 情况2：玩家刚登录/重上（非跨天），恢复今日数据 ==========
+                    // 玩家刚登录/重上（非跨天），恢复今日数据
                     String timeStr = chr.getAbstractPlayerInteraction().getAccountExtendValue("每日在线时间", true);
                     try {
                         currentOnlineTime = (timeStr == null) ? 0 : Integer.parseInt(timeStr);
@@ -55,7 +55,15 @@ public class OnlineTimeTask implements Runnable {
                         currentOnlineTime = 0;
                     }
 
-                } else {
+                    // 关键修复：如果数据库里是-1（脏数据），强制重置为0
+                    if (currentOnlineTime < 0) {
+                        currentOnlineTime = 0;
+                        // 立即保存，把数据库里的-1覆盖掉，防止下次还读到-1
+                        chr.getAbstractPlayerInteraction().saveOrUpdateAccountExtendValue("每日在线时间", "0", true);
+                    }
+
+                    chr.setCurrentOnlineTime(currentOnlineTime);
+                }else {
                     // ========== 情况3：正常在线，累加时间 ==========
                     currentOnlineTime += 5;
 
