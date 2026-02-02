@@ -42,8 +42,8 @@ const BOSS_ID_PINK_BEAN = 8820001; // 最终Boss品克缤ID
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
-    minLevel = 1 , maxLevel = 999;
+if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
+    minLevel = 1, maxLevel = 999;
 }
 
 function init() {
@@ -165,7 +165,7 @@ function changedMap(eim, player, mapid) {
     }
 }
 
-function changedLeader(eim, leader) {}
+function changedLeader(eim, leader) { }
 
 function playerDead(eim, player) {
     var count = eim.getIntProperty("fallenPlayers");
@@ -204,15 +204,15 @@ function playerDisconnected(eim, player) {
     }
 }
 
-function leftParty(eim, player) {}
+function leftParty(eim, player) { }
 
-function disbandParty(eim) {}
+function disbandParty(eim) { }
 
 function monsterValue(eim, mobId) {
     return 1;
 }
 
-function playerUnregistered(eim, player) {}
+function playerUnregistered(eim, player) { }
 
 
 function playerExit(eim, player) {
@@ -382,9 +382,9 @@ function startWave(eim) {
     }
 }
 
-function allMonstersDead(eim) {}
+function allMonstersDead(eim) { }
 
-function cancelSchedule() {}
+function cancelSchedule() { }
 
 function dispose(eim) {
     // ✅ 停止伤害统计

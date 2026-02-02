@@ -41,8 +41,8 @@ const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
-    minLevel = 1 , maxLevel = 999;
+if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
+    minLevel = 1, maxLevel = 999;
 }
 
 function init() {
@@ -96,7 +96,7 @@ function setEventRewards(eim) {
     eim.setEventClearStageMeso(mesoStages);
 }
 
-function afterSetup(eim) {}
+function afterSetup(eim) { }
 
 function setup(channel) {
     var eim = em.newInstance("Scarga" + channel);
@@ -140,9 +140,9 @@ function changedMap(eim, player, mapid) {
     }
 }
 
-function changedLeader(eim, leader) {}
+function changedLeader(eim, leader) { }
 
-function playerDead(eim, player) {}
+function playerDead(eim, player) { }
 
 function playerRevive(eim, player) {
     partyPlayersCheck(eim, player);
@@ -152,15 +152,15 @@ function playerDisconnected(eim, player) {
     partyPlayersCheck(eim, player);
 }
 
-function leftParty(eim, player) {}
+function leftParty(eim, player) { }
 
-function disbandParty(eim) {}
+function disbandParty(eim) { }
 
 function monsterValue(eim, mobId) {
     return 1;
 }
 
-function playerUnregistered(eim, player) {}
+function playerUnregistered(eim, player) { }
 
 function playerExit(eim, player) {
     eim.unregisterPlayer(player);
@@ -215,10 +215,76 @@ function monsterKilled(mob, eim) {
                     player.dropMessage(5, "[Scarga Boss] 获得 " + qty + " 个黄金枫叶！");
                     player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 2, false, true);
                     player.dropMessage(5, "获得 2 个绿水灵邮票！");
+                    // ✅ 3%概率抽取稀有装备（新增代码）
+                    var randomNum = 1 + Math.floor(Math.random() * 100);
+                    print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
+
+                    if (randomNum <= 3) {
+                        // 装备ID列表（只取每个数组的第一个元素）
+                        var equipList = [
+                            1042254, 1042255, 1042256, 1042257, 1042258,
+                            1062165, 1062166, 1062167, 1062168, 1062169,
+                            1132246, 1113075, 1022226, 1003209, 1132246,
+                            1113075, 1022226, 1003209, 1102481, 1102482,
+                            1102483, 1102484, 1102485, 1072743, 1072744,
+                            1072745, 1072746, 1072747
+                        ];
+
+                        var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                        print("触发稀有掉落！选中装备ID: " + selectedEquip);
+
+                        try {
+                            var party = eim.getPlayers();
+                            for (var i = 0; i < party.size(); i++) {
+                                var player = party.get(i);
+                                player.getClient().getAbstractPlayerInteraction().gainItem(
+                                    selectedEquip, 1, false, true
+                                );
+                                player.dropMessage(5, "恭喜！你获得了稀有装备！");
+                                player.dropMessage(5, "获得装备ID: " + selectedEquip);
+                            }
+                            print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
+                        } catch (e) {
+                            print("发放稀有装备失败: " + e);
+                        }
+                    }
                 }
                 print("[ScargaBattle] 已发放黄金枫叶奖励给 " + party.size() + " 名玩家");
             } catch (e) {
                 print("[ScargaBattle] ❌ 发放奖励失败: " + e);
+            }
+            // ✅ 3%概率抽取稀有装备（新增代码）
+            var randomNum = 1 + Math.floor(Math.random() * 100);
+            print("[roll点拿装备] 本次随机数: " + randomNum);
+
+            if (randomNum <= 3) {
+                // 装备ID列表（只取每个数组的第一个元素）
+                var equipList = [
+                    1042254, 1042255, 1042256, 1042257, 1042258,
+                    1062165, 1062166, 1062167, 1062168, 1062169,
+                    1132246, 1113075, 1022226, 1003209, 1132246,
+                    1113075, 1022226, 1003209, 1102481, 1102482,
+                    1102483, 1102484, 1102485, 1072743, 1072744,
+                    1072745, 1072746, 1072747
+                ];
+
+                var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                print("触发稀有掉落！选中装备ID: " + selectedEquip);
+
+                try {
+                    var party = eim.getPlayers();
+                    for (var i = 0; i < party.size(); i++) {
+                        var player = party.get(i);
+                        player.getClient().getAbstractPlayerInteraction().gainItem(
+                            selectedEquip, 1, false, true
+                        );
+                        player.dropMessage(5, "恭喜！你获得了稀有装备！");
+                        player.dropMessage(5, "获得装备ID: " + selectedEquip);
+                    }
+                    print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
+                } catch (e) {
+                    print("发放稀有装备失败: " + e);
+                }
             }
 
             // ✅ 广播最终伤害排名
@@ -238,9 +304,9 @@ function monsterKilled(mob, eim) {
     }
 }
 
-function allMonstersDead(eim) {}
+function allMonstersDead(eim) { }
 
-function cancelSchedule() {}
+function cancelSchedule() { }
 
 function dispose(eim) {
     // ✅ 停止伤害统计

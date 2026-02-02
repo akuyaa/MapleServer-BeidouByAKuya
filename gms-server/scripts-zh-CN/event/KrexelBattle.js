@@ -22,7 +22,7 @@ const BOSS_PHASE_3 = 9420522;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
+if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1;
     maxLevel = 999;
 }
@@ -93,8 +93,8 @@ function setup(level, lobbyid) {
     return eim;
 }
 
-function afterSetup(eim) {}
-function respawnStages(eim) {}
+function afterSetup(eim) { }
+function respawnStages(eim) { }
 
 function playerEntry(eim, player) {
     eim.dropMessage(5, "[远征队] " + player.getName() + " 已进入克雷塞尔的巢穴。");
@@ -168,8 +168,8 @@ function changedMap(eim, player, mapid) {
     }
 }
 
-function changedLeader(eim, leader) {}
-function playerDead(eim, player) {}
+function changedLeader(eim, leader) { }
+function playerDead(eim, player) { }
 
 function playerRevive(eim, player) {
     partyPlayersCheck(eim, player, false);
@@ -183,8 +183,8 @@ function playerDisconnected(eim, player) {
     }
 }
 
-function leftParty(eim, player) {}
-function disbandParty(eim) {}
+function leftParty(eim, player) { }
+function disbandParty(eim) { }
 
 function monsterValue(eim, mobId) { return 1; }
 
@@ -232,6 +232,72 @@ function giveRewardAndLog(eim, player) {
         eim.setProperty("rewarded_" + player.getId(), "1");
     } catch (e) {
         print("[KrexelBattle] 给 " + player.getName() + " 发奖失败: " + String(e));
+    }
+    // ✅ 3%概率抽取稀有装备（新增代码）
+    var randomNum = 1 + Math.floor(Math.random() * 100);
+    print("[roll点拿装备] 本次随机数: " + randomNum);
+
+    if (randomNum <= 3) {
+        // 装备ID列表（只取每个数组的第一个元素）
+        var equipList = [
+            1042254, 1042255, 1042256, 1042257, 1042258,
+            1062165, 1062166, 1062167, 1062168, 1062169,
+            1132246, 1113075, 1022226, 1003209, 1132246,
+            1113075, 1022226, 1003209, 1102481, 1102482,
+            1102483, 1102484, 1102485, 1072743, 1072744,
+            1072745, 1072746, 1072747
+        ];
+
+        var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+        print("触发稀有掉落！选中装备ID: " + selectedEquip);
+
+        try {
+            var party = eim.getPlayers();
+            for (var i = 0; i < party.size(); i++) {
+                var player = party.get(i);
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    selectedEquip, 1, false, true
+                );
+                player.dropMessage(5, "恭喜！你获得了稀有装备！");
+                player.dropMessage(5, "获得装备ID: " + selectedEquip);
+                // ✅ 3%概率抽取稀有装备（新增代码）
+                var randomNum = 1 + Math.floor(Math.random() * 100);
+                print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
+
+                if (randomNum <= 3) {
+                    // 装备ID列表（只取每个数组的第一个元素）
+                    var equipList = [
+                        1042254, 1042255, 1042256, 1042257, 1042258,
+                        1062165, 1062166, 1062167, 1062168, 1062169,
+                        1132246, 1113075, 1022226, 1003209, 1132246,
+                        1113075, 1022226, 1003209, 1102481, 1102482,
+                        1102483, 1102484, 1102485, 1072743, 1072744,
+                        1072745, 1072746, 1072747
+                    ];
+
+                    var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                    print("触发稀有掉落！选中装备ID: " + selectedEquip);
+
+                    try {
+                        var party = eim.getPlayers();
+                        for (var i = 0; i < party.size(); i++) {
+                            var player = party.get(i);
+                            player.getClient().getAbstractPlayerInteraction().gainItem(
+                                selectedEquip, 1, false, true
+                            );
+                            player.dropMessage(5, "恭喜！你获得了稀有装备！");
+                            player.dropMessage(5, "获得装备ID: " + selectedEquip);
+                        }
+                        print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
+                    } catch (e) {
+                        print("发放稀有装备失败: " + e);
+                    }
+                }
+            }
+            print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
+        } catch (e) {
+            print("发放稀有装备失败: " + e);
+        }
     }
 
     // 记录日志
@@ -323,9 +389,9 @@ function monsterKilled(mob, eim) {
     }
 }
 
-function allMonstersDead(eim) {}
-function cancelSchedule() {}
-function updateGateState(newState) {}
+function allMonstersDead(eim) { }
+function cancelSchedule() { }
+function updateGateState(newState) { }
 
 var disposed = false;
 function dispose(eim) {
@@ -334,7 +400,7 @@ function dispose(eim) {
 
     try {
         Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
-    } catch (e) {}
+    } catch (e) { }
 
     print("[KrexelBattle] 实例dispose完成");
 }
