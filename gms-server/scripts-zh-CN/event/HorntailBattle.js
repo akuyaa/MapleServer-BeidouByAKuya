@@ -12,7 +12,7 @@
 var isPq = true;
 var minPlayers = 3;
 var maxPlayers = 30;
-var minLevel = 100;
+var minLevel = 120;
 var maxLevel = 200;
 var entryMap = 240060000;
 var exitMap = 240050600;
@@ -206,6 +206,8 @@ function monsterKilled(mob, eim) {
                 );
 
                 player.dropMessage(5, "[暗黑龙王] 获得 " + qty + " 个黄金枫叶！");
+                player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 4, false, true);
+                player.dropMessage(5, "获得 4 个绿水灵邮票！");
             }
             print("[HorntailBattle] 已发放随机黄金枫叶奖励(30-50个)给 " + party.size() + " 名玩家");
         } catch (e) {

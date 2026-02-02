@@ -246,6 +246,8 @@ function monsterKilled(mob, eim) {
                     ITEM_ID, qty, false, true
                 );
                 player.dropMessage(5, "[帕普拉图斯] 获得 " + qty + " 个黄金枫叶！");
+                player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 1, false, true);
+                player.dropMessage(5, "获得 1 个绿水灵邮票！");
             }
             print("[PapulatusBattle] 已发放奖励给 " + party.size() + " 名玩家");
         } catch (e) {

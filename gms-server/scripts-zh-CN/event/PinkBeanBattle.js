@@ -26,7 +26,7 @@
 
 var isPq = true;
 var minPlayers = 6, maxPlayers = 30;
-var minLevel = 120, maxLevel = 255;
+var minLevel = 160, maxLevel = 255;
 var entryMap = 270050100;
 var exitMap = 270050300;
 var recruitMap = 270050000;
@@ -327,6 +327,8 @@ function monsterKilled(mob, eim) {
                     );
                     player.dropMessage(5, "[品克缤] 获得 50 个黄金枫叶！（数字：" + randomNum + "）");
                     print("[PinkBeanBattle] 玩家 [" + player.getName() + "] 获得 50 个黄金枫叶");
+                    player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 5, false, true);
+                    player.dropMessage(5, "获得 5 个绿水灵邮票！");
                 }
             }
         } catch (e) {

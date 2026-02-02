@@ -229,6 +229,8 @@ function monsterKilled(mob, eim) {
                 );
 
                 player.dropMessage(5, "[Showa Boss] 获得 " + qty + " 个黄金枫叶！");
+                player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 4, false, true);
+                player.dropMessage(5, "获得 4 个绿水灵邮票！");
             }
             print("[ShowaBattle] 已发放随机黄金枫叶奖励(30-50个)给 " + party.size() + " 名玩家");
         } catch (e) {
@@ -252,6 +254,7 @@ function monsterKilled(mob, eim) {
                 );
 
                 eim.dropMessage(6, "[Showa Boss] 击败奖励(" + qty + "个黄金枫叶)已掉落在地图中央！");
+
                 print("[ShowaBattle] 已使用备用方案地图掉落 " + qty + " 个奖励");
             } catch (e2) {
                 print("[ShowaBattle] 备用方案也失败: " + e2);

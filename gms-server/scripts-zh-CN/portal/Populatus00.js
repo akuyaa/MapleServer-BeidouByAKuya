@@ -1,5 +1,5 @@
 /* @author RonanLana
- * @modified: 添加每日挑战限制（使用bosslog_daily表）
+ * @modified: 添加每日挑战限制（使用bosslog_daily表）和70级等级限制
  */
 
 function enter(pi) {
@@ -30,6 +30,12 @@ function enter(pi) {
         } catch (e) {
             print("[PapulatusEntry] 检查bosslog失败: " + e);
             // 如果查询出错，允许进入（避免阻塞玩家）
+        }
+
+        // ✅ 添加70级等级限制检查
+        if (pi.getPlayer().getLevel() < 70) {
+            pi.playerMessage(5, "需要达到70级以上才能挑战帕普拉图斯。");
+            return false;
         }
 
         var em = pi.getEventManager("PapulatusBattle");

@@ -161,6 +161,8 @@ function monsterKilled(mob, eim) {
                 );
 
                 player.dropMessage(5, "[扎昆] 获得 " + qty + " 个黄金枫叶！");
+                player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 2, false, true);
+                player.dropMessage(5, "获得 2 个绿水灵邮票！");
             }
             print("已发放随机黄金枫叶奖励(15-25个)给 " + party.size() + " 名玩家");
         } catch (e) {

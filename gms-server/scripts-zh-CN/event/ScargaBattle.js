@@ -213,6 +213,8 @@ function monsterKilled(mob, eim) {
                     );
 
                     player.dropMessage(5, "[Scarga Boss] 获得 " + qty + " 个黄金枫叶！");
+                    player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 2, false, true);
+                    player.dropMessage(5, "获得 2 个绿水灵邮票！");
                 }
                 print("[ScargaBattle] 已发放黄金枫叶奖励给 " + party.size() + " 名玩家");
             } catch (e) {
