@@ -93,16 +93,16 @@ public class DamageStatisticsManager {
                     })
                     .filter(Objects::nonNull)
                     .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                    .limit(5)
+                    .limit(10)
                     .collect(Collectors.toList());
 
             if (rankings.isEmpty()) return;
 
             StringBuilder sb = new StringBuilder();
-            sb.append("#b【伤害统计】\r\n");
+            sb.append("【伤害统计】\r\n");
             int rank = 1;
             for (Map.Entry<Character, Long> entry : rankings) {
-                sb.append("#b").append(rank++).append(". ")
+                sb.append("").append(rank++).append(". ")
                         .append(entry.getKey().getName()).append(": ")
                         .append(nf.format(entry.getValue())).append("\r\n");
             }
@@ -127,7 +127,7 @@ public class DamageStatisticsManager {
             if (rankings.isEmpty()) return;
 
             StringBuilder sb = new StringBuilder();
-            sb.append("#b【最终伤害排名】\r\n");
+            sb.append("【最终伤害排名】\r\n");
             int rank = 1;
             for (Map.Entry<Character, Long> entry : rankings) {
                 sb.append("#b").append(rank++).append(". ")
