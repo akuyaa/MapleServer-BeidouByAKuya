@@ -25,7 +25,8 @@ public class DamageStatisticsManager {
             240060000, 240060100, 240060200,  // Horntail
             551030200,  // Scarga
             702060000,  // YaoSeng
-            801040100, 801040101   // ShoWa
+            801040100, 801040101,   // ShoWa
+            541020800 //Krexel
     );
 
     // 多实例管理：每个地图一个统计实例

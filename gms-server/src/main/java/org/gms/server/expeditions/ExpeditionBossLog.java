@@ -53,7 +53,8 @@ public class ExpeditionBossLog {
         SHOWA(1, 1, false),
         TIAN_HUANG(1, 1, false),
         BALROG_NORMAL(1, 1, false),
-        BALROG_EASY(1, 1, false);
+        BALROG_EASY(1, 1, false),
+        KREXEL(1, 1, false);
 
         private final int entries;
         private final int timeLength;
