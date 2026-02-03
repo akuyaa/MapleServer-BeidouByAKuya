@@ -258,9 +258,7 @@ function monsterKilled(mob, eim) {
         } catch (e) {
             print("[HorntailBattle] ❌ 发放奖励失败: " + e);
         }
-        // ✅ 3%概率抽取稀有装备（新增代码）
-        var randomNum = 1 + Math.floor(Math.random() * 100);
-        print("[roll点拿装备] 本次随机数: " + randomNum);
+
 
         // ✅ 广播最终伤害排名（向黑龙组所有地图广播）
         try {
