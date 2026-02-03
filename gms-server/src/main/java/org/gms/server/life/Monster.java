@@ -1399,22 +1399,35 @@ public class Monster extends AbstractLoadedLife {
                     debuffMobStat(ms);
                 }
             } else {    // is a crash skill
-                int i = (skillid == Crusader.ARMOR_CRASH ? 1 : (skillid == WhiteKnight.MAGIC_CRASH ? 2 : 0));
-                debuffMobStat(statups[i]);
+//                int i = (skillid == Crusader.ARMOR_CRASH ? 1 : (skillid == WhiteKnight.MAGIC_CRASH ? 2 : 0));
+//                debuffMobStat(statups[i]);
 
+//                if (GameConfig.getServerBoolean("use_anti_immunity_crash")) {
+//                    if (skillid == Crusader.ARMOR_CRASH) {
+//                        if (!isBuffed(MonsterStatus.WEAPON_REFLECT)) {
+//                            debuffMobStat(MonsterStatus.WEAPON_IMMUNITY);
+//                        }
+//                        if (!isBuffed(MonsterStatus.MAGIC_REFLECT)) {
+//                            debuffMobStat(MonsterStatus.MAGIC_IMMUNITY);
+//                        }
+//                    } else if (skillid == WhiteKnight.MAGIC_CRASH) {
+//                        if (!isBuffed(MonsterStatus.MAGIC_REFLECT)) {
+//                            debuffMobStat(MonsterStatus.MAGIC_IMMUNITY);
+//                        }
+//                        if (!isBuffed(MonsterStatus.WEAPON_REFLECT)) {
+//                            debuffMobStat(MonsterStatus.WEAPON_IMMUNITY);
+//                        }
+//                    } else {
+//                        if (!isBuffed(MonsterStatus.WEAPON_REFLECT)) {
+//                            debuffMobStat(MonsterStatus.WEAPON_IMMUNITY);
+//                        }
+//                    }
+//                }
                 if (GameConfig.getServerBoolean("use_anti_immunity_crash")) {
-                    if (skillid == Crusader.ARMOR_CRASH) {
-                        if (!isBuffed(MonsterStatus.WEAPON_REFLECT)) {
-                            debuffMobStat(MonsterStatus.WEAPON_IMMUNITY);
-                        }
+                    if (skillid == WhiteKnight.MAGIC_CRASH) {
                         if (!isBuffed(MonsterStatus.MAGIC_REFLECT)) {
                             debuffMobStat(MonsterStatus.MAGIC_IMMUNITY);
                         }
-                    } else if (skillid == WhiteKnight.MAGIC_CRASH) {
-                        if (!isBuffed(MonsterStatus.MAGIC_REFLECT)) {
-                            debuffMobStat(MonsterStatus.MAGIC_IMMUNITY);
-                        }
-                    } else {
                         if (!isBuffed(MonsterStatus.WEAPON_REFLECT)) {
                             debuffMobStat(MonsterStatus.WEAPON_IMMUNITY);
                         }
