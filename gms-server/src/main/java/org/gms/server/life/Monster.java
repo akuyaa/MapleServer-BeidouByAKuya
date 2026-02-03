@@ -460,7 +460,7 @@ public class Monster extends AbstractLoadedLife {
         }
 
         // ✅ 记录伤害统计（必须放在null检查之后，且传入地图ID）
-        if (from != null && trueDamage > 0) {
+        if (from != null && trueDamage > 0 && !fake) {
             DamageStatisticsManager.getInstance().recordDamage(from, trueDamage, this.map.getId());
         }
         if (trueDamage == null) {
