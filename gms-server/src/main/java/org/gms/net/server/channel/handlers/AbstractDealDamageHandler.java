@@ -98,22 +98,21 @@ import org.gms.server.maps.MapItem;
 import org.gms.server.maps.MapObject;
 import org.gms.server.maps.MapObjectType;
 import org.gms.server.maps.MapleMap;
+import org.gms.server.quest.requirements.MobRequirement;
 import org.gms.util.PacketCreator;
 import org.gms.util.Randomizer;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
-
+    private static final Logger log = LoggerFactory.getLogger(AbstractDealDamageHandler.class);
     public static class AttackInfo {
 
         public int numAttacked, numDamage, numAttackedAndDamage, skill, skilllevel, stance, direction, rangedirection, charge, display;
@@ -155,6 +154,7 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
         Skill theSkill = null;
         StatEffect attackEffect = null;
         final int job = player.getJob().getId();
+
         try {
             if (player.isBanned()) {
                 return;
@@ -172,23 +172,64 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                 }
 
                 int mobCount = attackEffect.getMobCount();
+//                if (attack.skill == 2101004) {  // 火焰箭
+//                    log.info("===== 火焰箭 DEBUG =====");
+//                    log.info("技能等级: " + attack.skilllevel);
+//                    log.info("攻击目标数: " + attack.numAttacked);
+//                    log.info("WZ mobCount: " + attackEffect.getMobCount());
+//                }
                 if (attack.skill != Cleric.HEAL) {
                     if (player.isAlive()) {
-                        if (attack.skill == Aran.BODY_PRESSURE || attack.skill == Marauder.ENERGY_CHARGE || attack.skill == ThunderBreaker.ENERGY_CHARGE) {  // thanks IxianMace for noticing Energy Charge skills refreshing on touch
+                        if (attack.skill == Aran.BODY_PRESSURE || attack.skill == Marauder.ENERGY_CHARGE || attack.skill == ThunderBreaker.ENERGY_CHARGE) {
                             // prevent touch dmg skills refreshing
                         } else if (attack.skill == DawnWarrior.FINAL_ATTACK || attack.skill == WindArcher.FINAL_ATTACK) {
                             // prevent cygnus FA refreshing
                             mobCount = 15;
-                        } else if (attack.skill == NightWalker.POISON_BOMB) {// Poison Bomb
+                        } else if (attack.skill == NightWalker.POISON_BOMB) {
                             attackEffect.applyTo(player, new Point(attack.position.x, attack.position.y));
-                        } else {
+                        } else if (attack.skill == 2101004) {  // 火焰箭强制群攻3只
+                        mobCount = 3;
+                        attackEffect.applyTo(player);
+
+                        // 如果只有1个目标，找周围额外2个
+                        if (attack.allDamage.size() == 1) {
+                            int firstOid = attack.allDamage.keySet().iterator().next();
+                            Monster firstMob = map.getMonsterByOid(firstOid);
+
+                            if (firstMob != null) {
+                                // 获取原始伤害
+                                List<Integer> originalDamage = attack.allDamage.get(firstOid);
+                                int damage = originalDamage.get(0);
+
+                                // 找范围内其他怪物
+                                int added = 0;
+                                Point pos = firstMob.getPosition();
+
+                                for (Monster nearbyMob : map.getAllMonsters()) {
+                                    if (nearbyMob.getObjectId() != firstOid && nearbyMob.isAlive()) {
+                                        // 距离检查
+                                        double dist = pos.distanceSq(nearbyMob.getPosition());
+                                        if (dist <= 37500) { // 150像素范围
+                                            // 直接造成伤害
+                                            map.damageMonster(player, nearbyMob, damage);
+
+                                            // 发送伤害显示包
+                                            map.broadcastMessage(PacketCreator.damageMonster(nearbyMob.getObjectId(), damage), nearbyMob.getPosition());
+
+                                            added++;
+                                            if (added >= 2) break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                             attackEffect.applyTo(player);
 
                             if (attack.skill == Page.FINAL_ATTACK_BW || attack.skill == Page.FINAL_ATTACK_SWORD || attack.skill == Fighter.FINAL_ATTACK_SWORD
                                     || attack.skill == Fighter.FINAL_ATTACK_AXE || attack.skill == Spearman.FINAL_ATTACK_SPEAR || attack.skill == Spearman.FINAL_ATTACK_POLEARM
                                     || attack.skill == Hunter.FINAL_ATTACK || attack.skill == Crossbowman.FINAL_ATTACK) {
-
-                                mobCount = 15;//:(
+                                mobCount = 15;
                             } else if (attack.skill == Aran.HIDDEN_FULL_DOUBLE || attack.skill == Aran.HIDDEN_FULL_TRIPLE || attack.skill == Aran.HIDDEN_OVER_DOUBLE || attack.skill == Aran.HIDDEN_OVER_TRIPLE) {
                                 mobCount = 12;
                             }
