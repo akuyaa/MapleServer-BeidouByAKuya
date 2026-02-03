@@ -231,11 +231,12 @@ function monsterKilled(mob, eim) {
                 player.dropMessage(5, "[Showa Boss] 获得 " + qty + " 个黄金枫叶！");
                 player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 4, false, true);
                 player.dropMessage(5, "获得 4 个绿水灵邮票！");
-                // ✅ 3%概率抽取稀有装备（新增代码）
+                // ✅ 1%概率抽取稀有装备（新增代码）
                 var randomNum = 1 + Math.floor(Math.random() * 100);
                 print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
 
-                if (randomNum <= 3) {
+                if (randomNum <= 1) {
+                    player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
                     // 装备ID列表（只取每个数组的第一个元素）
                     var equipList = [
                         1042254, 1042255, 1042256, 1042257, 1042258,

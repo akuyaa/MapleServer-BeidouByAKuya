@@ -1,4 +1,4 @@
-/*
+/* 
  * @author: Ronan (Modified for Krexel Expedition)
  * @event: Vs Krexel
  * @modified: 添加伤害排名广播，击杀时立即发奖
@@ -260,11 +260,12 @@ function giveRewardAndLog(eim, player) {
                 );
                 player.dropMessage(5, "恭喜！你获得了稀有装备！");
                 player.dropMessage(5, "获得装备ID: " + selectedEquip);
-                // ✅ 3%概率抽取稀有装备（新增代码）
+                // ✅ 1%概率抽取稀有装备（新增代码）
                 var randomNum = 1 + Math.floor(Math.random() * 100);
                 print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
 
-                if (randomNum <= 3) {
+                if (randomNum <= 1) {
+                    player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
                     // 装备ID列表（只取每个数组的第一个元素）
                     var equipList = [
                         1042254, 1042255, 1042256, 1042257, 1042258,
