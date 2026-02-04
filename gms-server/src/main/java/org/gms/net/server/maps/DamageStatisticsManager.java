@@ -211,7 +211,7 @@ public class DamageStatisticsManager {
             for (Map.Entry<Integer, Long> entry : sortedData) {
                 Character chr = findCharacter(entry.getKey(), map);
                 if (chr != null) {
-                    sb.append(rank++).append(". ")
+                    sb.append("  ").append(rank++).append(". ")
                             .append(chr.getName()).append(": ")
                             .append(nf.format(entry.getValue())).append("\r\n");
                     hasValid = true;
@@ -239,7 +239,7 @@ public class DamageStatisticsManager {
             for (Map.Entry<Integer, Long> entry : sortedData) {
                 Character chr = findCharacter(entry.getKey(), map);
                 if (chr != null) {
-                    sb.append(rank++).append(". ")
+                    sb.append("  ").append(rank++).append(". ")
                             .append(chr.getName()).append(": ")
                             .append(nf.format(entry.getValue())).append("\r\n");
                     hasValid = true;
