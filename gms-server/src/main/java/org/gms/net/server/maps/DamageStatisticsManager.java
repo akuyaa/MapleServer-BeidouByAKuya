@@ -17,6 +17,10 @@ public class DamageStatisticsManager {
     private static final Logger log = LoggerFactory.getLogger(DamageStatisticsManager.class);
     private static final DamageStatisticsManager instance = new DamageStatisticsManager();
 
+    // 伤害单位转换常量
+    private static final long WAN_UNIT = 10000L; // 万单位
+    private static final long YI_UNIT = 100000000L; // 亿单位
+
     // ✅ 多地图副本配置：每个数组是一个副本的所有地图
     private static final int[][] MULTI_MAP_BOSSES = {
             {240060000, 240060100, 240060200},  // Horntail 黑龙三地图
@@ -95,7 +99,7 @@ public class DamageStatisticsManager {
                 } catch (Exception e) {
                     log.error("副本组 {} 广播排名时出错", groupId, e);
                 }
-            }, 30000, 30000);  // 30秒广播一次
+            }, 20000, 20000);  // 20秒广播一次
 
             log.info("启动伤害统计定时器 - 副本组: {} (触发地图: {})", groupId, map.getId());
         }
@@ -132,7 +136,7 @@ public class DamageStatisticsManager {
 
                 String msg = buildRankingMessage(sortedData, nf, map, mapId);
                 if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg));
+                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 改为蓝色字体
                 }
             }
         }
@@ -165,7 +169,7 @@ public class DamageStatisticsManager {
 
                 String msg = buildFinalRankingMessage(sortedData, nf, map);
                 if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg));
+                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 改为蓝色字体
                 }
             }
         }
@@ -192,8 +196,6 @@ public class DamageStatisticsManager {
             return null;
         }
 
-
-
         // ✅ 修复：buildRankingMessage 需要传入 mapId 来显示正确的进度
         private String buildRankingMessage(List<Map.Entry<Integer, Long>> sortedData,
                                            NumberFormat nf, MapleMap map, int mapId) {
@@ -211,9 +213,10 @@ public class DamageStatisticsManager {
             for (Map.Entry<Integer, Long> entry : sortedData) {
                 Character chr = findCharacter(entry.getKey(), map);
                 if (chr != null) {
+                    String formattedDamage = formatDamageWithUnit(entry.getValue());
                     sb.append("  ").append(rank++).append(". ")
                             .append(chr.getName()).append(": ")
-                            .append(nf.format(entry.getValue())).append("\r\n");
+                            .append(formattedDamage).append("\r\n");
                     hasValid = true;
                 }
             }
@@ -239,14 +242,33 @@ public class DamageStatisticsManager {
             for (Map.Entry<Integer, Long> entry : sortedData) {
                 Character chr = findCharacter(entry.getKey(), map);
                 if (chr != null) {
+                    String formattedDamage = formatDamageWithUnit(entry.getValue());
                     sb.append("  ").append(rank++).append(". ")
                             .append(chr.getName()).append(": ")
-                            .append(nf.format(entry.getValue())).append("\r\n");
+                            .append(formattedDamage).append("\r\n");
                     hasValid = true;
                 }
             }
 
             return hasValid ? sb.toString() : null;
+        }
+
+        // ✅ 伤害数值格式化方法（新增）
+        private String formatDamageWithUnit(long damage) {
+            // 如果超过1亿，显示"X.XX亿"
+            if (damage >= YI_UNIT) {
+                double yiDamage = damage / (double) YI_UNIT;
+                return String.format("%.2f亿", yiDamage);
+            }
+            // 如果超过1万，显示"X.XX万"
+            else if (damage >= WAN_UNIT) {
+                double wanDamage = damage / (double) WAN_UNIT;
+                return String.format("%.2f万", wanDamage);
+            }
+            // 小于1万，直接显示数字
+            else {
+                return NumberFormat.getInstance().format(damage);
+            }
         }
 
         // ✅ 查找玩家：先在当前地图，再从 EIM 其他地图找
