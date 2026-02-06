@@ -302,6 +302,7 @@ function monsterKilled(mob, eim) {
         }
 
         eim.setIntProperty("defeatedBoss", killed + 1);
+        mob.getMap().broadcastScargaVictory();
     }
 }
 

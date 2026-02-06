@@ -388,6 +388,10 @@ function monsterKilled(mob, eim) {
             }
         }
     }
+    if(mob.getId() == BOSS_PHASE_3){
+        mob.getMap().broadcastKrexelVictory();
+    }
+
 }
 
 function allMonstersDead(eim) { }

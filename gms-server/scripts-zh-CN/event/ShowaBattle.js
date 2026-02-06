@@ -305,6 +305,7 @@ function monsterKilled(mob, eim) {
         }
 
         eim.clearPQ();
+        mob.getMap().broadcastScargaVictory();
     }
 }
 

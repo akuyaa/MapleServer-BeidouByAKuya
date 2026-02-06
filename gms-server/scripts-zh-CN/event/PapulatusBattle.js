@@ -325,7 +325,9 @@ function monsterKilled(mob, eim) {
 
         eim.showClearEffect();
         eim.clearPQ();
+        mob.getMap().broadcastPapulatusVictory();
     }
+    
 }
 
 
