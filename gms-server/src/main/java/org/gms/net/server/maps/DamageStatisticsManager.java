@@ -38,6 +38,23 @@ public class DamageStatisticsManager {
             541020800   // Krexel
     );
 
+    // Boss名称映射
+    private static final Map<Integer, String> BOSS_NAMES = new HashMap<>();
+    static {
+        // 多地图副本Boss名称
+        BOSS_NAMES.put(240060000, "暗黑龙王");
+        BOSS_NAMES.put(801040100, "广州黑龙");
+
+        // 单地图Boss名称
+        BOSS_NAMES.put(280030000, "扎昆");
+        BOSS_NAMES.put(800040410, "天皇");
+        BOSS_NAMES.put(220080001, "帕普拉图斯");
+        BOSS_NAMES.put(270050100, "品克缤");
+        BOSS_NAMES.put(551030200, "心疤狮王与熊");
+        BOSS_NAMES.put(702060000, "武林妖僧");
+        BOSS_NAMES.put(541020800, "克雷塞尔");
+    }
+
     // 生成所有支持的地图ID
     private static final Set<Integer> SUPPORTED_MAP_IDS = new HashSet<>();
     static {
@@ -136,7 +153,7 @@ public class DamageStatisticsManager {
 
                 String msg = buildRankingMessage(sortedData, nf, map, mapId);
                 if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 改为蓝色字体
+                    map.broadcastMessage(PacketCreator.serverNotice(5, msg));
                 }
             }
         }
@@ -167,9 +184,9 @@ public class DamageStatisticsManager {
                 MapleMap map = getMapFromTrigger(triggerMap, mapId);
                 if (map == null) continue;
 
-                String msg = buildFinalRankingMessage(sortedData, nf, map);
+                String msg = buildFinalRankingMessage(sortedData, nf, map, groupId);
                 if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 改为蓝色字体
+                    map.broadcastMessage(PacketCreator.serverNotice(5, msg));
                 }
             }
         }
@@ -230,12 +247,20 @@ public class DamageStatisticsManager {
             return buildRankingMessage(sortedData, nf, map, map.getId());
         }
 
+        // ✅ 修改：在最终排名消息中添加Boss名称
         private String buildFinalRankingMessage(List<Map.Entry<Integer, Long>> sortedData,
-                                                NumberFormat nf, MapleMap map) {
+                                                NumberFormat nf, MapleMap map, int groupId) {
             if (sortedData.isEmpty()) return null;
 
             StringBuilder sb = new StringBuilder();
-            sb.append("【最终伤害排名】\r\n");
+
+            // ✅ 获取Boss名称并添加到标题中
+            String bossName = getBossName(groupId);
+            if (bossName != null && !bossName.isEmpty()) {
+                sb.append("【").append(bossName).append("】最终伤害排名\r\n");
+            } else {
+                sb.append("【最终伤害排名】\r\n");
+            }
 
             int rank = 1;
             boolean hasValid = false;
@@ -253,7 +278,13 @@ public class DamageStatisticsManager {
             return hasValid ? sb.toString() : null;
         }
 
-        // ✅ 伤害数值格式化方法（新增）
+        // ✅ 重载，兼容原有调用
+        private String buildFinalRankingMessage(List<Map.Entry<Integer, Long>> sortedData,
+                                                NumberFormat nf, MapleMap map) {
+            return buildFinalRankingMessage(sortedData, nf, map, groupId);
+        }
+
+        // ✅ 伤害数值格式化方法
         private String formatDamageWithUnit(long damage) {
             // 如果超过1亿，显示"X.XX亿"
             if (damage >= YI_UNIT) {
@@ -269,6 +300,11 @@ public class DamageStatisticsManager {
             else {
                 return NumberFormat.getInstance().format(damage);
             }
+        }
+
+        // ✅ 获取Boss名称
+        private String getBossName(int groupId) {
+            return BOSS_NAMES.get(groupId);
         }
 
         // ✅ 查找玩家：先在当前地图，再从 EIM 其他地图找
@@ -358,6 +394,11 @@ public class DamageStatisticsManager {
             }
         }
         return null;
+    }
+
+    // ✅ 获取Boss名称
+    private String getBossName(int groupId) {
+        return BOSS_NAMES.get(groupId);
     }
 
     // ==================== 公共接口 ====================
