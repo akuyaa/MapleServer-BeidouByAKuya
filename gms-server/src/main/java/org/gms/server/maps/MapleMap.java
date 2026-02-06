@@ -1367,28 +1367,93 @@ public class MapleMap {
     // 暗黑龙王(Horntail)讨伐胜利广播
     public void broadcastHorntailVictory() {
         getWorldServer().dropMessage(6,"[远征凯旋] 致历经无数次挑战最终征服暗黑龙王的勇士们：" + "谨以此礼赞献给真正的神木村英雄！");
+        // 修正地图ID：暗黑龙王对应的地图ID是240060200
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(240060200);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
     }
 
     // 扎昆(Zakum)讨伐胜利广播
     public void broadcastZakumVictory() {
         getWorldServer().dropMessage(6,"[远征凯旋] 长久笼罩天空之城的邪恶之树终于倾倒！" +"致那些历经无数次尝试最终征服扎昆的远征队，胜利属于你们！" +"你们是天空之城真正的传说！");
+        // 修正地图ID：扎昆对应的地图ID是280030000
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(280030000);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
     }
 
     // 武林妖僧(YaoSeng)讨伐胜利广播（嵩山少林）
     public void broadcastYaoSengVictory() {
         getWorldServer().dropMessage(6, "[远征凯旋] 嵩山少林寺的千年古刹终得清净！致那些历经恶战破除邪咒的远征队，佛光再现！你们是武林真正的正道之光！");
+        // 修正地图ID：武林妖僧对应的地图ID是702060000
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(702060000);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
     }
 
     // 天皇(TianHuang)讨伐胜利广播（枫城）
     public void broadcastTianHuangVictory() {
         getWorldServer().dropMessage(6, "[远征凯旋] 笼罩枫城的黑暗阴云终于散去！致那些浴血奋战最终推翻天皇暴政的远征队，和平重归！你们是枫叶之城真正的守护者！");
+        // 天皇对应的地图ID是800040410（正确）
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(800040410);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
     }
 
     // 品克缤(PinkBean)讨伐胜利广播
-    public void broadcastPinkBeanVictory(int channel) {
-        getWorldServer().dropMessage(6,"[远征凯旋] 在" + channel + "频道挑战品克缤的远征队，" +  "以雷霆之势完成了终极讨伐！时间神殿重现璀璨光辉，" + "当英雄们从战场凯旋之时，被夺走的白昼终于归来！"
-        );
+    public void broadcastPinkBeanVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 彩虹乐园的混乱终于平息！致那些勇敢面对品克缤疯狂挑战的远征队，欢笑重归！你们是乐园真正的守护者！");
+        // 品克缤对应的地图ID是270050100
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(270050100);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
     }
+
+    // 帕普拉图斯(Papulatus)讨伐胜利广播
+    public void broadcastPapulatusVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 时光的混乱终于被终结！致那些穿越时间裂缝击败帕普拉图斯的远征队，秩序恢复！你们是时间的守护者！");
+        // 帕普拉图斯对应的地图ID是220080001
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(220080001);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
+    // 克雷塞尔(Krexel)讨伐胜利广播
+    public void broadcastKrexelVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 深渊的威胁终于被消除！致那些勇敢深入黑暗击败克雷塞尔的远征队，光明永存！你们是勇气的化身！");
+        // 克雷塞尔对应的地图ID是541020800
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(541020800);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
+    // 广州黑龙(ShoWa)讨伐胜利广播
+    public void broadcastShoWaVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 岭南大地的龙患终于平息！致那些勇闯龙穴击败广州黑龙的远征队，岭南安宁！你们是南粤的英雄！");
+        // 广州黑龙对应的地图ID是801040101（最后一关）
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(801040101);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
+    // 心疤狮王与熊(Scarga)讨伐胜利广播
+    public void broadcastScargaVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 荒野的双王传说终于落幕！致那些勇闯猛兽巢穴击败心疤狮王与熊的远征队，荒野安宁！你们是自然的守护者！");
+        // 心疤狮王与熊对应的地图ID是551030200
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(551030200);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
 
 
     private boolean removeKilledMonsterObject(Monster monster) {
