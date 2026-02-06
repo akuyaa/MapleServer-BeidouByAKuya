@@ -86,6 +86,9 @@ public class DamageStatisticsManager {
         private boolean enabled = false;
         private final int groupId;
         private long lastDamageTime = 0;  // ✅ 记录最后伤害时间
+        private long fightStartTime = 0;  // ✅ 记录战斗开始时间
+        private boolean fightStarted = false; // ✅ 记录战斗是否开始
+        private long fightDuration = 0;   // ✅ 记录最终战斗耗时
 
         DamageStatisticsInstance(int groupId) {
             this.groupId = groupId;
@@ -96,6 +99,11 @@ public class DamageStatisticsManager {
             enabled = true;
             damageData.clear();
             lastDamageTime = System.currentTimeMillis();
+            // ✅ 记录战斗开始时间
+            fightStartTime = System.currentTimeMillis();
+            fightStarted = true;
+            fightDuration = 0;
+            log.info("副本组 {} 伤害统计已启用，开始计时", groupId);
         }
 
         void recordDamage(Character attacker, int damage) {
@@ -153,8 +161,25 @@ public class DamageStatisticsManager {
 
                 String msg = buildRankingMessage(sortedData, nf, map, mapId);
                 if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg));
+                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 使用5号字体
                 }
+            }
+        }
+
+        // ✅ 修改：broadcastFinalRanking 方法仅记录战斗耗时
+        public void broadcastFinalRanking(MapleMap triggerMap) {
+            if (!enabled) return;
+
+            // ✅ 计算并记录战斗耗时
+            if (fightStarted) {
+                fightDuration = (System.currentTimeMillis() - fightStartTime) / 1000;
+                String durationStr = formatDuration(fightDuration);
+
+                // ✅ 停止计时
+                fightStarted = false;
+                log.info("副本组 {} 战斗结束，最终耗时: {}", groupId, durationStr);
+            } else {
+                log.info("副本组 {} 战斗结束，但战斗未开始记录", groupId);
             }
         }
 
@@ -167,8 +192,6 @@ public class DamageStatisticsManager {
                 return false;
             }
         }
-
-
 
         // ✅ 辅助：从触发地图获取 EIM，再找其他地图
         private MapleMap getMapFromTrigger(MapleMap triggerMap, int targetMapId) {
@@ -226,169 +249,6 @@ public class DamageStatisticsManager {
             return buildRankingMessage(sortedData, nf, map, map.getId());
         }
 
-        // ✅ 优化：083版本兼容的最终排名消息 - 显示所有参与者
-        private String buildFinalRankingMessage(List<Map.Entry<Integer, Long>> sortedData,
-                                                NumberFormat nf, MapleMap map, int groupId) {
-            if (sortedData.isEmpty()) return null;
-
-            StringBuilder sb = new StringBuilder();
-
-            // ✅ 获取Boss名称
-            String bossName = getBossName(groupId);
-            if (bossName == null || bossName.isEmpty()) {
-                bossName = "未知Boss";
-            }
-
-            // ✅ 获取当前时间（击杀时间）
-            Calendar cal = Calendar.getInstance();
-            int year = cal.get(Calendar.YEAR);
-            int month = cal.get(Calendar.MONTH) + 1; // 月份从0开始
-            int day = cal.get(Calendar.DAY_OF_MONTH);
-            int hour = cal.get(Calendar.HOUR_OF_DAY);
-            int minute = cal.get(Calendar.MINUTE);
-            int second = cal.get(Calendar.SECOND);
-
-            String killTime = String.format("%04d年%02d月%02d日 %02d:%02d:%02d",
-                    year, month, day, hour, minute, second);
-
-            // ✅ 简洁但华丽的描述
-            sb.append("==============================================\r\n");
-            sb.append("          【").append(bossName).append("讨伐战】\r\n");
-            sb.append("==============================================\r\n");
-            sb.append("击杀时间：").append(killTime).append("\r\n");
-            sb.append("以下勇士在战斗中表现出色：\r\n\r\n");
-
-            int rank = 1;
-            long totalDamage = 0;
-            int participantCount = damageData.size();
-            long firstPlaceDamage = sortedData.isEmpty() ? 0 : sortedData.get(0).getValue();
-
-            // ✅ 显示所有参与者的伤害排名
-            for (Map.Entry<Integer, Long> entry : sortedData) {
-                Character chr = findCharacter(entry.getKey(), map);
-                if (chr != null) {
-                    long damage = entry.getValue();
-                    totalDamage += damage;
-                    String formattedDamage = formatDamageWithUnit(damage);
-
-                    // 使用简单的排名格式
-                    sb.append("第").append(rank).append("名：").append(chr.getName()).append("\r\n");
-                    sb.append("  伤害值：").append(formattedDamage);
-
-                    // 添加相对于第一名的百分比
-                    if (firstPlaceDamage > 0) {
-                        double percentage = (damage * 100.0) / firstPlaceDamage;
-                        sb.append("（相当于第1名的").append(String.format("%.1f", percentage)).append("%）");
-                    }
-
-                    // 添加占总伤害的百分比
-                    if (totalDamage > 0) {
-                        double totalPercentage = (damage * 100.0) / totalDamage;
-                        sb.append("\r\n  贡献度：").append(String.format("%.1f", totalPercentage)).append("%");
-                    }
-
-                    sb.append("\r\n\r\n");
-                    rank++;
-
-                    // 如果排名太多，可以限制显示数量，但显示"等X人"
-                    if (rank > 20) { // 最多显示20名
-                        int remaining = participantCount - 20;
-                        if (remaining > 0) {
-                            sb.append("... 等").append(remaining).append("名勇士\r\n");
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // ✅ 添加详细统计信息
-            String formattedTotal = formatDamageWithUnit(totalDamage);
-            sb.append("==============================================\r\n");
-            sb.append("【战斗统计摘要】\r\n");
-            sb.append("----------------------------------------------\r\n");
-            sb.append("参与勇士：").append(participantCount).append("人\r\n");
-            sb.append("总伤害量：").append(formattedTotal).append("\r\n");
-
-            if (participantCount > 0) {
-                long avgDamage = totalDamage / participantCount;
-                String formattedAvg = formatDamageWithUnit(avgDamage);
-                sb.append("平均伤害：").append(formattedAvg).append("\r\n");
-
-                // 计算伤害中位数
-                if (!sortedData.isEmpty()) {
-                    List<Long> damageList = new ArrayList<>();
-                    for (Map.Entry<Integer, Long> entry : sortedData) {
-                        damageList.add(entry.getValue());
-                    }
-                    Collections.sort(damageList);
-                    long medianDamage = damageList.get(damageList.size() / 2);
-                    String formattedMedian = formatDamageWithUnit(medianDamage);
-                    sb.append("中位伤害：").append(formattedMedian).append("\r\n");
-                }
-            }
-
-            // ✅ 添加伤害分布信息
-            if (participantCount >= 3 && !sortedData.isEmpty()) {
-                sb.append("----------------------------------------------\r\n");
-                sb.append("【伤害分布】\r\n");
-
-                long top3Damage = 0;
-                for (int i = 0; i < Math.min(3, sortedData.size()); i++) {
-                    top3Damage += sortedData.get(i).getValue();
-                }
-                double top3Percentage = (top3Damage * 100.0) / totalDamage;
-                sb.append("前三名伤害占比：").append(String.format("%.1f", top3Percentage)).append("%\r\n");
-
-                if (participantCount > 3) {
-                    long othersDamage = totalDamage - top3Damage;
-                    double othersPercentage = (othersDamage * 100.0) / totalDamage;
-                    sb.append("其他勇士伤害占比：").append(String.format("%.1f", othersPercentage)).append("%\r\n");
-                }
-            }
-
-            sb.append("==============================================\r\n");
-
-            // ✅ 添加激励语句
-            sb.append(getVictoryMessage(bossName));
-            sb.append("\r\n==============================================");
-
-            return sb.toString();
-        }
-
-        // ✅ 新增：优化版的胜利消息，根据不同Boss显示不同消息
-        private String getVictoryMessage(String bossName) {
-            Map<String, String> messages = new HashMap<>();
-            messages.put("天皇", "枫叶之城因你们的勇气而重获新生，和平的曙光再次照耀大地！");
-            messages.put("暗黑龙王", "暗影终将消散，光明永驻心间！神木村的传说因你们而续写！");
-            messages.put("扎昆", "火焰巨树的倒下，象征着勇气战胜了恐惧！天空之城永远铭记这一刻！");
-            messages.put("武林妖僧", "千年古刹重归清净，佛光普照嵩山！正道之光永不熄灭！");
-            messages.put("品克缤", "彩虹乐园恢复了往日的欢笑，疯狂的挑战终被勇者征服！");
-            messages.put("帕普拉图斯", "时间的长河回归正轨，秩序的守护者名垂青史！");
-            messages.put("克雷塞尔", "深渊的黑暗终被驱散，勇气的光芒照亮前路！");
-            messages.put("广州黑龙", "岭南大地重归安宁，龙患的阴影彻底消散！");
-            messages.put("心疤狮王与熊", "荒野的双王传说落幕，自然的平衡得以恢复！");
-            messages.put("闹钟", "时光的错乱已被修正，钟楼的钟声再次准时响起！");
-
-            return messages.getOrDefault(bossName, "勇士们的英勇事迹将被永远传颂，荣耀归于每一位参与者！");
-        }
-
-        // ✅ 新增：获取当前时间的格式化方法
-        private String getFormattedKillTime() {
-            Calendar cal = Calendar.getInstance();
-            String[] weekDays = {"日", "一", "二", "三", "四", "五", "六"};
-            int week = cal.get(Calendar.DAY_OF_WEEK) - 1;
-            if (week < 0) week = 0;
-
-            return String.format("%04d年%02d月%02d日 星期%s %02d:%02d:%02d",
-                    cal.get(Calendar.YEAR),
-                    cal.get(Calendar.MONTH) + 1,
-                    cal.get(Calendar.DAY_OF_MONTH),
-                    weekDays[week],
-                    cal.get(Calendar.HOUR_OF_DAY),
-                    cal.get(Calendar.MINUTE),
-                    cal.get(Calendar.SECOND));
-        }
-
         // ✅ 伤害数值格式化方法
         private String formatDamageWithUnit(long damage) {
             // 如果超过1亿，显示"X.XX亿"
@@ -404,6 +264,29 @@ public class DamageStatisticsManager {
             // 小于1万，直接显示数字
             else {
                 return NumberFormat.getInstance().format(damage);
+            }
+        }
+
+        // ✅ 格式化耗时
+        private String formatDuration(long seconds) {
+            if (seconds < 60) {
+                return seconds + "秒";
+            } else if (seconds < 3600) {
+                long minutes = seconds / 60;
+                long remainingSeconds = seconds % 60;
+                if (remainingSeconds > 0) {
+                    return minutes + "分" + remainingSeconds + "秒";
+                } else {
+                    return minutes + "分钟";
+                }
+            } else {
+                long hours = seconds / 3600;
+                long minutes = (seconds % 3600) / 60;
+                if (minutes > 0) {
+                    return hours + "小时" + minutes + "分";
+                } else {
+                    return hours + "小时";
+                }
             }
         }
 
@@ -455,6 +338,7 @@ public class DamageStatisticsManager {
                 timer = null;
             }
             damageData.clear();
+            fightStarted = false;
             log.info("副本组 {} 伤害统计已停止", groupId);
         }
 
@@ -559,7 +443,20 @@ public class DamageStatisticsManager {
         inst.startBroadcastTimer(map);
     }
 
-    // ✅ 新增：最终伤害显示函数
+    // ✅ 修改：broadcastFinalRanking 方法调用实例的方法
+    public void broadcastFinalRanking(MapleMap map) {
+        if (map == null) return;
+
+        int mapId = map.getId();
+        int groupId = getGroupId(mapId);
+
+        DamageStatisticsInstance inst = instances.get(groupId);
+        if (inst != null) {
+            inst.broadcastFinalRanking(map);
+        }
+    }
+
+    // ✅ 新增：最终伤害显示函数 - 与20秒排名相同格式
     public String getFinalDamageDisplay(int mapId) {
         int groupId = getGroupId(mapId);
         DamageStatisticsInstance inst = instances.get(groupId);
@@ -568,10 +465,9 @@ public class DamageStatisticsManager {
             return null;
         }
 
-        // 获取伤害数据（取前5名）
+        // 获取所有伤害数据（按伤害从高到低排序）
         List<Map.Entry<Integer, Long>> sortedData = inst.damageData.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                .limit(5)
                 .collect(Collectors.toList());
 
         if (sortedData.isEmpty()) return null;
@@ -580,18 +476,22 @@ public class DamageStatisticsManager {
         String bossName = getBossName(groupId);
         if (bossName == null) bossName = "未知Boss";
 
-        // 简洁华丽的标题
-        sb.append("<<").append(bossName).append("讨伐战 伤害之星>>\r\n");
-        sb.append("英勇的冒险家们展现出非凡实力：\r\n\r\n");
+        // ✅ 获取战斗耗时
+        long fightDuration = inst.fightDuration;
+        String durationStr = fightDuration > 0 ? formatDuration(fightDuration) : "未知";
+
+        // ✅ 简洁标题 - 与20秒排名相同格式
+        sb.append("【").append(bossName).append("伤害统计】\r\n");
+        sb.append("战斗耗时：").append(durationStr).append("\r\n");
 
         int rank = 1;
         long totalDamage = 0;
-        int participantCount = inst.damageData.size();
 
-        // 简单的排名称号
-        String[] rankTitles = {"首席输出", "次席输出", "三席输出"};
+        // ✅ 显示前10名 - 与20秒排名相同格式
+        int displayLimit = Math.min(10, sortedData.size());
 
-        for (Map.Entry<Integer, Long> entry : sortedData) {
+        for (int i = 0; i < displayLimit; i++) {
+            Map.Entry<Integer, Long> entry = sortedData.get(i);
             // 查找玩家名字
             String playerName = "未知冒险家";
             try {
@@ -609,43 +509,49 @@ public class DamageStatisticsManager {
             totalDamage += damage;
             String formattedDamage = formatDamageWithUnit(damage);
 
-            // 使用简单的称号
-            String title = (rank <= rankTitles.length) ? rankTitles[rank-1] : ("第" + rank + "名");
-
-            sb.append(title).append("：").append(playerName).append("\r\n");
-            sb.append("   伤害值：").append(formattedDamage);
-
-            // 添加百分比
-            if (totalDamage > 0) {
-                double percentage = (damage * 100.0) / totalDamage;
-                sb.append("（占比").append(String.format("%.1f", percentage)).append("%）");
-            }
-
-            sb.append("\r\n\r\n");
-            rank++;
+            // ✅ 与20秒排名相同格式：排名. 名字: 伤害
+            sb.append("  ").append(rank++).append(". ")
+                    .append(playerName).append(": ")
+                    .append(formattedDamage).append("\r\n");
         }
 
-        // 总计信息
-        String formattedTotal = formatDamageWithUnit(totalDamage);
-        sb.append("总计").append(participantCount).append("名勇士参与战斗");
-        sb.append("，合力造成").append(formattedTotal).append("伤害！");
+        // ✅ 完成总伤害计算（包括未显示的玩家）
+        for (int i = displayLimit; i < sortedData.size(); i++) {
+            totalDamage += sortedData.get(i).getValue();
+        }
 
-        // 添加鼓舞语句
-        sb.append("\r\n").append(getFinalEncouragement(bossName));
+        // ✅ 如果有更多未显示的玩家
+        if (sortedData.size() > displayLimit) {
+            int remainingPlayers = sortedData.size() - displayLimit;
+            sb.append("... 等").append(remainingPlayers).append("名勇士\r\n");
+        }
 
         return sb.toString();
     }
 
-    // ✅ 新增：最终鼓励语句
-    private String getFinalEncouragement(String bossName) {
-        Map<String, String> encouragements = new HashMap<>();
-        encouragements.put("天皇", "枫叶之城为你们的胜利而欢呼！");
-        encouragements.put("暗黑龙王", "暗黑龙王的传说因你们而终结！");
-        encouragements.put("扎昆", "扎昆的火焰在勇士面前熄灭！");
-        encouragements.put("品克缤", "彩虹岛的噩梦已被驱散！");
-        encouragements.put("广州黑龙", "岭南英雄，名不虚传！");
 
-        return encouragements.getOrDefault(bossName, "勇士们的传说将被永远铭记！");
+
+    // ✅ 新增：格式化耗时（公共方法）
+    private String formatDuration(long seconds) {
+        if (seconds < 60) {
+            return seconds + "秒";
+        } else if (seconds < 3600) {
+            long minutes = seconds / 60;
+            long remainingSeconds = seconds % 60;
+            if (remainingSeconds > 0) {
+                return minutes + "分" + remainingSeconds + "秒";
+            } else {
+                return minutes + "分钟";
+            }
+        } else {
+            long hours = seconds / 3600;
+            long minutes = (seconds % 3600) / 60;
+            if (minutes > 0) {
+                return hours + "小时" + minutes + "分";
+            } else {
+                return hours + "小时";
+            }
+        }
     }
 
     // ✅ 新增：伤害数值格式化（公共方法）
@@ -660,8 +566,6 @@ public class DamageStatisticsManager {
             return NumberFormat.getInstance().format(damage);
         }
     }
-
-
 
     public void stop() {
         log.info("收到停止命令，各副本统计将在5分钟无伤害后自动停止");
