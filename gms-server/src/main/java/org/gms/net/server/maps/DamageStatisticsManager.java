@@ -76,8 +76,8 @@ public class DamageStatisticsManager {
         }
     }
 
-    // 多实例管理
-    private final Map<Integer, DamageStatisticsInstance> instances = new ConcurrentHashMap<>();
+    // ✅ 多实例管理：Key = 频道ID + ":" + BOSS组ID，确保不同频道隔离
+    private final Map<String, DamageStatisticsInstance> instances = new ConcurrentHashMap<>();
 
     // 内部类
     private class DamageStatisticsInstance {
@@ -85,6 +85,7 @@ public class DamageStatisticsManager {
         private ScheduledFuture<?> timer = null;
         private boolean enabled = false;
         private final int groupId;
+        private final int channelId;
         private long lastDamageTime = 0;
         private long fightStartTime = 0;
         private boolean fightStarted = false;
@@ -92,19 +93,23 @@ public class DamageStatisticsManager {
         // ✅ 存储EIM引用，用于获取组内所有地图实例
         private EventInstanceManager eventInstance = null;
 
-        DamageStatisticsInstance(int groupId) {
+        DamageStatisticsInstance(int groupId, int channelId) {
             this.groupId = groupId;
+            this.channelId = channelId;
         }
 
         void enable() {
-            if (enabled) return;
+            if (enabled) {
+                // 已启用则重置计时，确保每次进入都是新的开始
+                log.info("副本组 {} 频道 {} 已在运行，重置计时", groupId, channelId);
+            }
             enabled = true;
             damageData.clear();
             lastDamageTime = System.currentTimeMillis();
             fightStartTime = System.currentTimeMillis();
             fightStarted = true;
             fightDuration = 0;
-            log.info("副本组 {} 伤害统计已启用，开始计时", groupId);
+            log.info("副本组 {} 频道 {} 伤害统计已启用，开始计时", groupId, channelId);
         }
 
         void recordDamage(Character attacker, int damage) {
@@ -122,17 +127,17 @@ public class DamageStatisticsManager {
             if (this.eventInstance == null) {
                 try {
                     this.eventInstance = map.getEventInstance();
-                    log.info("副本组 {} 绑定EIM引用: {}", groupId,
+                    log.info("副本组 {} 频道 {} 绑定EIM引用: {}", groupId, channelId,
                             this.eventInstance != null ? "成功" : "失败(无EIM)");
                 } catch (Exception e) {
-                    log.warn("副本组 {} 获取EIM失败: {}", groupId, e.getMessage());
+                    log.warn("副本组 {} 频道 {} 获取EIM失败: {}", groupId, channelId, e.getMessage());
                 }
             }
 
-            // 如果定时器已存在，直接返回
-            if (timer != null && !timer.isCancelled()) {
-                log.debug("副本组 {} 定时器已在运行", groupId);
-                return;
+            // 如果定时器已存在，先取消再创建新的（避免重复）
+            if (timer != null) {
+                timer.cancel(false);
+                timer = null;
             }
 
             // ✅ 创建定时器，直接向组内所有地图广播
@@ -140,11 +145,11 @@ public class DamageStatisticsManager {
                 try {
                     broadcastRankingToGroup();
                 } catch (Exception e) {
-                    log.error("副本组 {} 广播排名时出错", groupId, e);
+                    log.error("副本组 {} 频道 {} 广播排名时出错", groupId, channelId, e);
                 }
             }, 20000, 20000);  // 20秒广播一次
 
-            log.info("启动伤害统计定时器 - 副本组: {} (触发地图: {})", groupId, map.getId());
+            log.info("启动伤害统计定时器 - 副本组: {} 频道: {} (触发地图: {})", groupId, channelId, map.getId());
         }
 
         // ✅ 新方法：向组内所有地图广播（通过EIM获取地图实例）
@@ -154,7 +159,7 @@ public class DamageStatisticsManager {
 
             // 5分钟无伤害检查
             if (System.currentTimeMillis() - lastDamageTime > 5 * 60 * 1000) {
-                log.info("副本组 {} 超过5分钟无伤害，自动停止", groupId);
+                log.info("副本组 {} 频道 {} 超过5分钟无伤害，自动停止", groupId, channelId);
                 stop();
                 return;
             }
@@ -178,17 +183,17 @@ public class DamageStatisticsManager {
 
                     // 检查该地图是否有玩家
                     if (!hasAnyPlayer(targetMap)) {
-                        log.debug("副本组 {} 地图 {} 无玩家，跳过广播", groupId, mapId);
+                        log.debug("副本组 {} 频道 {} 地图 {} 无玩家，跳过广播", groupId, channelId, mapId);
                         continue;
                     }
 
                     String msg = buildRankingMessage(sortedData, nf, targetMap, mapId);
                     if (msg != null) {
                         targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
-                        log.debug("副本组 {} 已向地图 {} 广播伤害排名", groupId, mapId);
+                        log.debug("副本组 {} 频道 {} 已向地图 {} 广播伤害排名", groupId, channelId, mapId);
                     }
                 } catch (Exception e) {
-                    log.error("副本组 {} 向地图 {} 广播失败: {}", groupId, mapId, e.getMessage());
+                    log.error("副本组 {} 频道 {} 向地图 {} 广播失败: {}", groupId, channelId, mapId, e.getMessage());
                 }
             }
         }
@@ -205,8 +210,15 @@ public class DamageStatisticsManager {
                 }
             }
 
-            // 如果EIM获取失败，尝试从触发地图的channel获取（备用）
-            // 这里返回null，因为无法确定channel
+            // 如果EIM获取失败，尝试从channel获取
+            try {
+                var channel = org.gms.net.server.Server.getInstance().getWorld(0).getChannel(channelId);
+                if (channel != null) {
+                    return channel.getMapFactory().getMap(mapId);
+                }
+            } catch (Exception e) {
+                log.debug("通过频道 {} 获取地图 {} 失败: {}", channelId, mapId, e.getMessage());
+            }
             return null;
         }
 
@@ -223,9 +235,9 @@ public class DamageStatisticsManager {
                 fightDuration = (System.currentTimeMillis() - fightStartTime) / 1000;
                 String durationStr = formatDuration(fightDuration);
                 fightStarted = false;
-                log.info("副本组 {} 战斗结束，最终耗时: {}", groupId, durationStr);
+                log.info("副本组 {} 频道 {} 战斗结束，最终耗时: {}", groupId, channelId, durationStr);
             } else {
-                log.info("副本组 {} 战斗结束，但战斗未开始记录", groupId);
+                log.info("副本组 {} 频道 {} 战斗结束，但战斗未开始记录", groupId, channelId);
             }
         }
 
@@ -237,22 +249,6 @@ public class DamageStatisticsManager {
             } catch (Exception e) {
                 return false;
             }
-        }
-
-        // ✅ 辅助：从触发地图获取 EIM，再找其他地图（保留用于兼容）
-        private MapleMap getMapFromTrigger(MapleMap triggerMap, int targetMapId) {
-            if (triggerMap == null) return null;
-            if (triggerMap.getId() == targetMapId) return triggerMap;
-
-            try {
-                EventInstanceManager eim = triggerMap.getEventInstance();
-                if (eim != null) {
-                    return eim.getMapInstance(targetMapId);
-                }
-            } catch (Exception e) {
-                log.debug("无法从 EIM 获取地图 {}", targetMapId);
-            }
-            return null;
         }
 
         // ✅ 修复：buildRankingMessage 需要传入 mapId 来显示正确的进度
@@ -335,11 +331,10 @@ public class DamageStatisticsManager {
 
             // 从 EIM 其他地图找
             try {
-                EventInstanceManager eim = triggerMap.getEventInstance();
-                if (eim != null) {
+                if (eventInstance != null) {
                     int[] groupMaps = getGroupMaps(groupId);
                     for (int mid : groupMaps) {
-                        MapleMap m = eim.getMapInstance(mid);
+                        MapleMap m = eventInstance.getMapInstance(mid);
                         if (m != null) {
                             chr = m.getCharacterById(charId);
                             if (chr != null) return chr;
@@ -352,12 +347,14 @@ public class DamageStatisticsManager {
 
             // 最后从全局找（用于显示名字，即使玩家已离开地图）
             try {
-                return org.gms.net.server.Server.getInstance()
-                        .getWorld(0).getChannel(1)
-                        .getPlayerStorage().getCharacterById(charId);
+                var channel = org.gms.net.server.Server.getInstance().getWorld(0).getChannel(channelId);
+                if (channel != null) {
+                    return channel.getPlayerStorage().getCharacterById(charId);
+                }
             } catch (Exception e) {
-                return null;
+                // ignore
             }
+            return null;
         }
 
         void stop() {
@@ -370,11 +367,19 @@ public class DamageStatisticsManager {
             damageData.clear();
             eventInstance = null; // ✅ 清理EIM引用
             fightStarted = false;
-            log.info("副本组 {} 伤害统计已停止", groupId);
+            log.info("副本组 {} 频道 {} 伤害统计已停止", groupId, channelId);
         }
 
         boolean isEnabled() {
             return enabled;
+        }
+
+        int getChannelId() {
+            return channelId;
+        }
+
+        long getFightDuration() {
+            return fightDuration;
         }
     }
 
@@ -395,6 +400,11 @@ public class DamageStatisticsManager {
             if (group[0] == groupId) return group;
         }
         return new int[]{groupId};  // 单地图组
+    }
+
+    // ✅ 生成实例Key
+    private String getKey(int channelId, int groupId) {
+        return channelId + ":" + groupId;
     }
 
     // ✅ 获取进度信息
@@ -423,11 +433,31 @@ public class DamageStatisticsManager {
 
     // ==================== 公共接口 ====================
 
-    public void enable() {
-        SUPPORTED_MAP_IDS.forEach(this::enable);
-        log.info("伤害统计系统已启用（全地图模式）");
+    // ✅ 新增：enable传入频道ID和地图ID（推荐JS使用）
+    public void enable(int channelId, int mapId) {
+        if (!SUPPORTED_MAP_IDS.contains(mapId)) {
+            log.warn("地图ID {} 不受支持", mapId);
+            return;
+        }
+
+        int groupId = getGroupId(mapId);
+        String key = getKey(channelId, groupId);
+
+        // 检查是否已存在，如果存在则重置
+        DamageStatisticsInstance existing = instances.get(key);
+        if (existing != null && existing.isEnabled()) {
+            log.info("副本组 {} 频道 {} 已存在，重置统计", groupId, channelId);
+            existing.stop();
+            instances.remove(key);
+        }
+
+        DamageStatisticsInstance inst = new DamageStatisticsInstance(groupId, channelId);
+        instances.put(key, inst);
+        inst.enable();
+        log.info("副本组 {} 频道 {} 伤害统计已启用（触发地图: {}）", groupId, channelId, mapId);
     }
 
+    // ✅ 保留：单参数版本（兼容旧代码，自动检测频道）
     public void enable(int mapId) {
         if (!SUPPORTED_MAP_IDS.contains(mapId)) {
             log.warn("地图ID {} 不受支持", mapId);
@@ -435,9 +465,27 @@ public class DamageStatisticsManager {
         }
 
         int groupId = getGroupId(mapId);
-        DamageStatisticsInstance inst = instances.computeIfAbsent(groupId, DamageStatisticsInstance::new);
-        inst.enable();
-        log.info("副本组 {} 伤害统计已启用（触发地图: {}）", groupId, mapId);
+
+        // 获取地图所在的频道
+        int channelId = 1; // 默认频道1
+        try {
+            for (int ch = 1; ch <= 6; ch++) {
+                var channel = org.gms.net.server.Server.getInstance().getWorld(0).getChannel(ch);
+                if (channel == null) continue;
+
+                var map = channel.getMapFactory().getMap(mapId);
+                if (map != null) {
+                    // 找到这个地图了
+                    channelId = ch;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取地图 {} 频道失败，使用默认频道1: {}", mapId, e.getMessage());
+        }
+
+        // 调用双参数版本
+        enable(channelId, mapId);
     }
 
     public void recordDamage(Character attacker, int damage, int mapId) {
@@ -445,8 +493,22 @@ public class DamageStatisticsManager {
         if (attacker == null || damage <= 0) return;
 
         int groupId = getGroupId(mapId);
-        DamageStatisticsInstance inst = instances.computeIfAbsent(groupId, k -> {
-            var newInst = new DamageStatisticsInstance(groupId);
+
+        // 获取玩家所在频道
+        int channelId = 1;
+        try {
+            if (attacker.getClient() != null) {
+                channelId = attacker.getClient().getChannel();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
+        final int finalChannelId = channelId;
+        final int finalGroupId = groupId;
+        String key = getKey(channelId, groupId);
+        DamageStatisticsInstance inst = instances.computeIfAbsent(key, k -> {
+            var newInst = new DamageStatisticsInstance(finalGroupId, finalChannelId);
             newInst.enable();
             return newInst;
         });
@@ -464,8 +526,13 @@ public class DamageStatisticsManager {
         }
 
         int groupId = getGroupId(mapId);
-        DamageStatisticsInstance inst = instances.computeIfAbsent(groupId, k -> {
-            var newInst = new DamageStatisticsInstance(groupId);
+        int channelId = map.getChannelServer().getId();
+
+        final int finalChannelId = channelId;
+        final int finalGroupId = groupId;
+        String key = getKey(channelId, groupId);
+        DamageStatisticsInstance inst = instances.computeIfAbsent(key, k -> {
+            var newInst = new DamageStatisticsInstance(finalGroupId, finalChannelId);
             newInst.enable();
             return newInst;
         });
@@ -478,22 +545,33 @@ public class DamageStatisticsManager {
 
         int mapId = map.getId();
         int groupId = getGroupId(mapId);
+        int channelId = map.getChannelServer().getId();
+        String key = getKey(channelId, groupId);
 
-        DamageStatisticsInstance inst = instances.get(groupId);
+        DamageStatisticsInstance inst = instances.remove(key);
         if (inst != null) {
             inst.broadcastFinalRanking(map);
+            inst.stop();
         }
     }
 
     // ✅ 新增：最终伤害显示函数
     public String getFinalDamageDisplay(int mapId) {
         int groupId = getGroupId(mapId);
-        DamageStatisticsInstance inst = instances.get(groupId);
 
-        if (inst == null || !inst.enabled || inst.damageData.isEmpty()) {
-            return null;
+        // 遍历所有频道找这个groupId的实例
+        for (int ch = 1; ch <= 6; ch++) {
+            String key = getKey(ch, groupId);
+            DamageStatisticsInstance inst = instances.get(key);
+
+            if (inst != null && inst.isEnabled()) {
+                return buildFinalDisplay(inst, groupId);
+            }
         }
+        return null;
+    }
 
+    private String buildFinalDisplay(DamageStatisticsInstance inst, int groupId) {
         List<Map.Entry<Integer, Long>> sortedData = inst.damageData.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .collect(Collectors.toList());
@@ -504,7 +582,7 @@ public class DamageStatisticsManager {
         String bossName = getBossName(groupId);
         if (bossName == null) bossName = "未知Boss";
 
-        long fightDuration = inst.fightDuration;
+        long fightDuration = inst.getFightDuration();
         String durationStr = fightDuration > 0 ? formatDuration(fightDuration) : "未知";
 
         sb.append("【").append(bossName).append("伤害统计】\r\n");
@@ -518,11 +596,13 @@ public class DamageStatisticsManager {
             Map.Entry<Integer, Long> entry = sortedData.get(i);
             String playerName = "未知冒险家";
             try {
-                Character chr = org.gms.net.server.Server.getInstance()
-                        .getWorld(0).getChannel(1)
-                        .getPlayerStorage().getCharacterById(entry.getKey());
-                if (chr != null) {
-                    playerName = chr.getName();
+                int channelId = inst.getChannelId();
+                var channel = org.gms.net.server.Server.getInstance().getWorld(0).getChannel(channelId);
+                if (channel != null) {
+                    Character chr = channel.getPlayerStorage().getCharacterById(entry.getKey());
+                    if (chr != null) {
+                        playerName = chr.getName();
+                    }
                 }
             } catch (Exception e) {
                 // ignore
@@ -589,10 +669,15 @@ public class DamageStatisticsManager {
 
     public void stop(int mapId) {
         int groupId = getGroupId(mapId);
-        DamageStatisticsInstance inst = instances.remove(groupId);
-        if (inst != null) {
-            inst.stop();
-            log.info("副本组 {} 伤害统计已停止", groupId);
+
+        // 停止所有频道的这个groupId
+        for (int ch = 1; ch <= 6; ch++) {
+            String key = getKey(ch, groupId);
+            DamageStatisticsInstance inst = instances.remove(key);
+            if (inst != null) {
+                inst.stop();
+                log.info("副本组 {} 频道 {} 伤害统计已停止", groupId, ch);
+            }
         }
     }
 
