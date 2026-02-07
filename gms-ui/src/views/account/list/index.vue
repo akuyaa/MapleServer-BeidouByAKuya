@@ -140,6 +140,12 @@
             align="center"
           />
           <a-table-column
+            :title="$t('account.list.column.lastLoginIp')"
+            data-index="lastLoginIp"
+            :width="120"
+            align="center"
+          />
+          <a-table-column
             :title="$t('account.list.column.operate')"
             :width="150"
             align="center"

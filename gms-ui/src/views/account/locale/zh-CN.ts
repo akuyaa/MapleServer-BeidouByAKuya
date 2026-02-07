@@ -13,6 +13,7 @@ export default {
   'account.list.column.gender.other': '未知',
   'account.list.column.lastLoginAt': '最后登录时间',
   'account.list.column.registerAt': '账号注册时间',
+  'account.list.column.lastLoginIp': '上次登录ip',
   'account.list.column.operate': '操作',
   'account.list.column.operate.ban': '封停',
   'account.list.column.operate.ban.reason': '封停原因',

@@ -100,4 +100,7 @@ public class AccountsDO implements Serializable {
     private String hwid;
 
     private Integer language;
+
+
+    private String lastLoginIp;
 }

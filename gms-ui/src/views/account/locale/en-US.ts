@@ -13,6 +13,7 @@ export default {
   'account.list.column.gender.other': 'other',
   'account.list.column.lastLoginAt': 'lastLoginAt',
   'account.list.column.registerAt': 'registerAt',
+  'account.list.column.lastLoginIp': 'lastLoginIp',
   'account.list.column.operate': 'operate',
   'account.list.column.operate.ban': 'ban',
   'account.list.column.operate.ban.reason': 'reason',
