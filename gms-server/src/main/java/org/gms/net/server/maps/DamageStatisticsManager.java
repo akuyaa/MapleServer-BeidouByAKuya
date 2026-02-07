@@ -85,10 +85,12 @@ public class DamageStatisticsManager {
         private ScheduledFuture<?> timer = null;
         private boolean enabled = false;
         private final int groupId;
-        private long lastDamageTime = 0;  // ✅ 记录最后伤害时间
-        private long fightStartTime = 0;  // ✅ 记录战斗开始时间
-        private boolean fightStarted = false; // ✅ 记录战斗是否开始
-        private long fightDuration = 0;   // ✅ 记录最终战斗耗时
+        private long lastDamageTime = 0;
+        private long fightStartTime = 0;
+        private boolean fightStarted = false;
+        private long fightDuration = 0;
+        // ✅ 存储EIM引用，用于获取组内所有地图实例
+        private EventInstanceManager eventInstance = null;
 
         DamageStatisticsInstance(int groupId) {
             this.groupId = groupId;
@@ -99,7 +101,6 @@ public class DamageStatisticsManager {
             enabled = true;
             damageData.clear();
             lastDamageTime = System.currentTimeMillis();
-            // ✅ 记录战斗开始时间
             fightStartTime = System.currentTimeMillis();
             fightStarted = true;
             fightDuration = 0;
@@ -110,17 +111,34 @@ public class DamageStatisticsManager {
             if (!enabled || attacker == null || damage <= 0) return;
             int charId = attacker.getId();
             damageData.merge(charId, (long)damage, Long::sum);
-            lastDamageTime = System.currentTimeMillis();  // ✅ 更新最后伤害时间
+            lastDamageTime = System.currentTimeMillis();
         }
 
+        // ✅ 修改：启动定时器时存储EIM引用
         void startBroadcastTimer(MapleMap map) {
-            if (timer != null && !timer.isCancelled()) {
-                return;  // 已启动，不再重复创建
+            if (map == null) return;
+
+            // 存储EIM引用，用于后续获取组内所有地图
+            if (this.eventInstance == null) {
+                try {
+                    this.eventInstance = map.getEventInstance();
+                    log.info("副本组 {} 绑定EIM引用: {}", groupId,
+                            this.eventInstance != null ? "成功" : "失败(无EIM)");
+                } catch (Exception e) {
+                    log.warn("副本组 {} 获取EIM失败: {}", groupId, e.getMessage());
+                }
             }
 
+            // 如果定时器已存在，直接返回
+            if (timer != null && !timer.isCancelled()) {
+                log.debug("副本组 {} 定时器已在运行", groupId);
+                return;
+            }
+
+            // ✅ 创建定时器，直接向组内所有地图广播
             timer = TimerManager.getInstance().register(() -> {
                 try {
-                    broadcastRanking(map);
+                    broadcastRankingToGroup();
                 } catch (Exception e) {
                     log.error("副本组 {} 广播排名时出错", groupId, e);
                 }
@@ -129,12 +147,12 @@ public class DamageStatisticsManager {
             log.info("启动伤害统计定时器 - 副本组: {} (触发地图: {})", groupId, map.getId());
         }
 
-        void broadcastRanking(MapleMap triggerMap) {
+        // ✅ 新方法：向组内所有地图广播（通过EIM获取地图实例）
+        void broadcastRankingToGroup() {
             if (!enabled) return;
             if (damageData.isEmpty()) return;
-            if (triggerMap == null) return;
 
-            // ✅ 5分钟无伤害自动停止
+            // 5分钟无伤害检查
             if (System.currentTimeMillis() - lastDamageTime > 5 * 60 * 1000) {
                 log.info("副本组 {} 超过5分钟无伤害，自动停止", groupId);
                 stop();
@@ -149,33 +167,61 @@ public class DamageStatisticsManager {
 
             if (sortedData.isEmpty()) return;
 
-            // ✅ 关键修复：向组内所有地图广播，而不只是触发地图
+            // ✅ 获取组内所有地图ID
             int[] groupMaps = getGroupMaps(groupId);
 
+            // ✅ 通过EIM获取每个地图的实例并广播
             for (int mapId : groupMaps) {
-                MapleMap map = getMapFromTrigger(triggerMap, mapId);
-                if (map == null) continue;
+                try {
+                    MapleMap targetMap = getMapInstance(mapId);
+                    if (targetMap == null) continue;
 
-                // 检查该地图是否有玩家，有玩家才广播
-                if (!hasAnyPlayer(map)) continue;
+                    // 检查该地图是否有玩家
+                    if (!hasAnyPlayer(targetMap)) {
+                        log.debug("副本组 {} 地图 {} 无玩家，跳过广播", groupId, mapId);
+                        continue;
+                    }
 
-                String msg = buildRankingMessage(sortedData, nf, map, mapId);
-                if (msg != null) {
-                    map.broadcastMessage(PacketCreator.serverNotice(5, msg)); // ✅ 使用5号字体
+                    String msg = buildRankingMessage(sortedData, nf, targetMap, mapId);
+                    if (msg != null) {
+                        targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
+                        log.debug("副本组 {} 已向地图 {} 广播伤害排名", groupId, mapId);
+                    }
+                } catch (Exception e) {
+                    log.error("副本组 {} 向地图 {} 广播失败: {}", groupId, mapId, e.getMessage());
                 }
             }
         }
 
-        // ✅ 修改：broadcastFinalRanking 方法仅记录战斗耗时
+        // ✅ 辅助：获取地图实例（优先通过EIM，失败则尝试其他方式）
+        private MapleMap getMapInstance(int mapId) {
+            // 优先通过EIM获取
+            if (eventInstance != null) {
+                try {
+                    MapleMap map = eventInstance.getMapInstance(mapId);
+                    if (map != null) return map;
+                } catch (Exception e) {
+                    log.debug("通过EIM获取地图 {} 失败: {}", mapId, e.getMessage());
+                }
+            }
+
+            // 如果EIM获取失败，尝试从触发地图的channel获取（备用）
+            // 这里返回null，因为无法确定channel
+            return null;
+        }
+
+        // ✅ 保留旧方法用于兼容
+        void broadcastRanking(MapleMap triggerMap) {
+            broadcastRankingToGroup();
+        }
+
+        // ✅ 修改：广播最终排名时存储战斗耗时
         public void broadcastFinalRanking(MapleMap triggerMap) {
             if (!enabled) return;
 
-            // ✅ 计算并记录战斗耗时
             if (fightStarted) {
                 fightDuration = (System.currentTimeMillis() - fightStartTime) / 1000;
                 String durationStr = formatDuration(fightDuration);
-
-                // ✅ 停止计时
                 fightStarted = false;
                 log.info("副本组 {} 战斗结束，最终耗时: {}", groupId, durationStr);
             } else {
@@ -193,16 +239,11 @@ public class DamageStatisticsManager {
             }
         }
 
-        // ✅ 辅助：从触发地图获取 EIM，再找其他地图
+        // ✅ 辅助：从触发地图获取 EIM，再找其他地图（保留用于兼容）
         private MapleMap getMapFromTrigger(MapleMap triggerMap, int targetMapId) {
             if (triggerMap == null) return null;
+            if (triggerMap.getId() == targetMapId) return triggerMap;
 
-            // 如果就是触发地图本身
-            if (triggerMap.getId() == targetMapId) {
-                return triggerMap;
-            }
-
-            // 尝试从 EIM 获取
             try {
                 EventInstanceManager eim = triggerMap.getEventInstance();
                 if (eim != null) {
@@ -211,7 +252,6 @@ public class DamageStatisticsManager {
             } catch (Exception e) {
                 log.debug("无法从 EIM 获取地图 {}", targetMapId);
             }
-
             return null;
         }
 
@@ -251,18 +291,13 @@ public class DamageStatisticsManager {
 
         // ✅ 伤害数值格式化方法
         private String formatDamageWithUnit(long damage) {
-            // 如果超过1亿，显示"X.XX亿"
             if (damage >= YI_UNIT) {
                 double yiDamage = damage / (double) YI_UNIT;
                 return String.format("%.2f亿", yiDamage);
-            }
-            // 如果超过1万，显示"X.XX万"
-            else if (damage >= WAN_UNIT) {
+            } else if (damage >= WAN_UNIT) {
                 double wanDamage = damage / (double) WAN_UNIT;
                 return String.format("%.2f万", wanDamage);
-            }
-            // 小于1万，直接显示数字
-            else {
+            } else {
                 return NumberFormat.getInstance().format(damage);
             }
         }
@@ -290,11 +325,6 @@ public class DamageStatisticsManager {
             }
         }
 
-        // ✅ 获取Boss名称
-        private String getBossName(int groupId) {
-            return BOSS_NAMES.get(groupId);
-        }
-
         // ✅ 查找玩家：先在当前地图，再从 EIM 其他地图找
         private Character findCharacter(int charId, MapleMap triggerMap) {
             if (triggerMap == null) return null;
@@ -308,10 +338,10 @@ public class DamageStatisticsManager {
                 EventInstanceManager eim = triggerMap.getEventInstance();
                 if (eim != null) {
                     int[] groupMaps = getGroupMaps(groupId);
-                    for (int mapId : groupMaps) {
-                        MapleMap map = eim.getMapInstance(mapId);
-                        if (map != null) {
-                            chr = map.getCharacterById(charId);
+                    for (int mid : groupMaps) {
+                        MapleMap m = eim.getMapInstance(mid);
+                        if (m != null) {
+                            chr = m.getCharacterById(charId);
                             if (chr != null) return chr;
                         }
                     }
@@ -338,6 +368,7 @@ public class DamageStatisticsManager {
                 timer = null;
             }
             damageData.clear();
+            eventInstance = null; // ✅ 清理EIM引用
             fightStarted = false;
             log.info("副本组 {} 伤害统计已停止", groupId);
         }
@@ -439,11 +470,9 @@ public class DamageStatisticsManager {
             return newInst;
         });
 
-        // 只有该组第一个进入的地图才启动定时器
         inst.startBroadcastTimer(map);
     }
 
-    // ✅ 修改：broadcastFinalRanking 方法调用实例的方法
     public void broadcastFinalRanking(MapleMap map) {
         if (map == null) return;
 
@@ -456,7 +485,7 @@ public class DamageStatisticsManager {
         }
     }
 
-    // ✅ 新增：最终伤害显示函数 - 与20秒排名相同格式
+    // ✅ 新增：最终伤害显示函数
     public String getFinalDamageDisplay(int mapId) {
         int groupId = getGroupId(mapId);
         DamageStatisticsInstance inst = instances.get(groupId);
@@ -465,7 +494,6 @@ public class DamageStatisticsManager {
             return null;
         }
 
-        // 获取所有伤害数据（按伤害从高到低排序）
         List<Map.Entry<Integer, Long>> sortedData = inst.damageData.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .collect(Collectors.toList());
@@ -476,23 +504,18 @@ public class DamageStatisticsManager {
         String bossName = getBossName(groupId);
         if (bossName == null) bossName = "未知Boss";
 
-        // ✅ 获取战斗耗时
         long fightDuration = inst.fightDuration;
         String durationStr = fightDuration > 0 ? formatDuration(fightDuration) : "未知";
 
-        // ✅ 简洁标题 - 与20秒排名相同格式
         sb.append("【").append(bossName).append("伤害统计】\r\n");
         sb.append("战斗耗时：").append(durationStr).append("\r\n");
 
         int rank = 1;
         long totalDamage = 0;
-
-        // ✅ 显示前10名 - 与20秒排名相同格式
         int displayLimit = Math.min(10, sortedData.size());
 
         for (int i = 0; i < displayLimit; i++) {
             Map.Entry<Integer, Long> entry = sortedData.get(i);
-            // 查找玩家名字
             String playerName = "未知冒险家";
             try {
                 Character chr = org.gms.net.server.Server.getInstance()
@@ -509,18 +532,15 @@ public class DamageStatisticsManager {
             totalDamage += damage;
             String formattedDamage = formatDamageWithUnit(damage);
 
-            // ✅ 与20秒排名相同格式：排名. 名字: 伤害
             sb.append("  ").append(rank++).append(". ")
                     .append(playerName).append(": ")
                     .append(formattedDamage).append("\r\n");
         }
 
-        // ✅ 完成总伤害计算（包括未显示的玩家）
         for (int i = displayLimit; i < sortedData.size(); i++) {
             totalDamage += sortedData.get(i).getValue();
         }
 
-        // ✅ 如果有更多未显示的玩家
         if (sortedData.size() > displayLimit) {
             int remainingPlayers = sortedData.size() - displayLimit;
             sb.append("... 等").append(remainingPlayers).append("名勇士\r\n");
@@ -529,9 +549,6 @@ public class DamageStatisticsManager {
         return sb.toString();
     }
 
-
-
-    // ✅ 新增：格式化耗时（公共方法）
     private String formatDuration(long seconds) {
         if (seconds < 60) {
             return seconds + "秒";
@@ -554,7 +571,6 @@ public class DamageStatisticsManager {
         }
     }
 
-    // ✅ 新增：伤害数值格式化（公共方法）
     private String formatDamageWithUnit(long damage) {
         if (damage >= YI_UNIT) {
             double yiDamage = damage / (double) YI_UNIT;
