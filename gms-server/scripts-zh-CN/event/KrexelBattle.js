@@ -64,6 +64,35 @@ function getEligibleParty(party) {
     return Java.to(eligible, Java.type('org.gms.net.server.world.PartyCharacter[]'));
 }
 
+// ✅ 通用方法：从EIM获取频道ID（可复制到其他BOSS脚本）
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        // 尝试从名称解析：BossName + channel 格式，如 "Krexel1", "TianHuang2"
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        // 如果名称解析失败，尝试从eim获取channel属性
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    // 默认返回1
+    return 1;
+}
+
 function setup(level, lobbyid) {
     var eim = em.newInstance("Krexel" + lobbyid);
     eim.setProperty("level", level);
@@ -80,11 +109,13 @@ function setup(level, lobbyid) {
     setEventRewards(eim);
     setEventExclusives(eim);
 
-    // 启用伤害统计
+    // ✅ 启用伤害统计（传入频道和地图ID）
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().enable();
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().startBroadcastTimer(map);
-        print("[KrexelBattle] 伤害统计已启用");
+        var channel = getChannelFromEim(eim);
+        var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable(channel, entryMap);  // 传入频道和地图ID
+        DamageStatsMgr.startBroadcastTimer(map);
+        print("[KrexelBattle] 伤害统计已启用（频道: " + channel + "）");
     } catch (e) {
         print("[KrexelBattle] 启用伤害统计失败: " + e);
     }
@@ -403,12 +434,18 @@ function dispose(eim) {
     if (disposed) return;
     disposed = true;
 
+    // ✅ 停止伤害统计（传入频道和地图ID）
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
-    } catch (e) { }
+        var channel = getChannelFromEim(eim);
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap, channel);
+        print("[KrexelBattle] 伤害统计已停止（频道: " + channel + "）");
+    } catch (e) {
+        print("[KrexelBattle] 停止伤害统计失败: " + e);
+    }
 
     print("[KrexelBattle] 实例dispose完成");
 }
+
 
 function partyPlayersCheck(eim, player, endOnLack) {
     if (eim.isEventCleared()) return true;

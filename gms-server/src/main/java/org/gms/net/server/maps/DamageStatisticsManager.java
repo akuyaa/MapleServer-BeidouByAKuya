@@ -99,10 +99,7 @@ public class DamageStatisticsManager {
         }
 
         void enable() {
-            if (enabled) {
-                // 已启用则重置计时，确保每次进入都是新的开始
-                log.info("副本组 {} 频道 {} 已在运行，重置计时", groupId, channelId);
-            }
+            if (enabled) return;
             enabled = true;
             damageData.clear();
             lastDamageTime = System.currentTimeMillis();
@@ -134,10 +131,10 @@ public class DamageStatisticsManager {
                 }
             }
 
-            // 如果定时器已存在，先取消再创建新的（避免重复）
-            if (timer != null) {
-                timer.cancel(false);
-                timer = null;
+            // 如果定时器已存在，直接返回
+            if (timer != null && !timer.isCancelled()) {
+                log.debug("副本组 {} 频道 {} 定时器已在运行", groupId, channelId);
+                return;
             }
 
             // ✅ 创建定时器，直接向组内所有地图广播
@@ -227,7 +224,7 @@ public class DamageStatisticsManager {
             broadcastRankingToGroup();
         }
 
-        // ✅ 修改：广播最终排名时存储战斗耗时
+        // ✅ 修改：广播最终排名时存储战斗耗时（不停止实例）
         public void broadcastFinalRanking(MapleMap triggerMap) {
             if (!enabled) return;
 
@@ -381,6 +378,10 @@ public class DamageStatisticsManager {
         long getFightDuration() {
             return fightDuration;
         }
+
+        Map<Integer, Long> getDamageData() {
+            return new HashMap<>(damageData);
+        }
     }
 
     private DamageStatisticsManager() {}
@@ -433,31 +434,7 @@ public class DamageStatisticsManager {
 
     // ==================== 公共接口 ====================
 
-    // ✅ 新增：enable传入频道ID和地图ID（推荐JS使用）
-    public void enable(int channelId, int mapId) {
-        if (!SUPPORTED_MAP_IDS.contains(mapId)) {
-            log.warn("地图ID {} 不受支持", mapId);
-            return;
-        }
-
-        int groupId = getGroupId(mapId);
-        String key = getKey(channelId, groupId);
-
-        // 检查是否已存在，如果存在则重置
-        DamageStatisticsInstance existing = instances.get(key);
-        if (existing != null && existing.isEnabled()) {
-            log.info("副本组 {} 频道 {} 已存在，重置统计", groupId, channelId);
-            existing.stop();
-            instances.remove(key);
-        }
-
-        DamageStatisticsInstance inst = new DamageStatisticsInstance(groupId, channelId);
-        instances.put(key, inst);
-        inst.enable();
-        log.info("副本组 {} 频道 {} 伤害统计已启用（触发地图: {}）", groupId, channelId, mapId);
-    }
-
-    // ✅ 保留：单参数版本（兼容旧代码，自动检测频道）
+    // ✅ 保留：enable方法（供JS调用）
     public void enable(int mapId) {
         if (!SUPPORTED_MAP_IDS.contains(mapId)) {
             log.warn("地图ID {} 不受支持", mapId);
@@ -484,8 +461,28 @@ public class DamageStatisticsManager {
             log.warn("获取地图 {} 频道失败，使用默认频道1: {}", mapId, e.getMessage());
         }
 
-        // 调用双参数版本
-        enable(channelId, mapId);
+        final int finalChannelId = channelId;
+        final int finalGroupId = groupId;
+        String key = getKey(channelId, groupId);
+        DamageStatisticsInstance inst = instances.computeIfAbsent(key, k -> new DamageStatisticsInstance(finalGroupId, finalChannelId));
+        inst.enable();
+        log.info("副本组 {} 频道 {} 伤害统计已启用（触发地图: {}）", groupId, channelId, mapId);
+    }
+
+    // ✅ 新增：双参数enable（频道ID + 地图ID）
+    public void enable(int channelId, int mapId) {
+        if (!SUPPORTED_MAP_IDS.contains(mapId)) {
+            log.warn("地图ID {} 不受支持", mapId);
+            return;
+        }
+
+        int groupId = getGroupId(mapId);
+        final int finalChannelId = channelId;
+        final int finalGroupId = groupId;
+        String key = getKey(channelId, groupId);
+        DamageStatisticsInstance inst = instances.computeIfAbsent(key, k -> new DamageStatisticsInstance(finalGroupId, finalChannelId));
+        inst.enable();
+        log.info("副本组 {} 频道 {} 伤害统计已启用（触发地图: {}）", groupId, channelId, mapId);
     }
 
     public void recordDamage(Character attacker, int damage, int mapId) {
@@ -526,7 +523,7 @@ public class DamageStatisticsManager {
         }
 
         int groupId = getGroupId(mapId);
-        int channelId = map.getChannelServer().getId();
+        int channelId = map.getChannel();
 
         final int finalChannelId = channelId;
         final int finalGroupId = groupId;
@@ -540,22 +537,25 @@ public class DamageStatisticsManager {
         inst.startBroadcastTimer(map);
     }
 
+    // ✅ 修改：broadcastFinalRanking 只结算，不停止实例
     public void broadcastFinalRanking(MapleMap map) {
         if (map == null) return;
 
         int mapId = map.getId();
         int groupId = getGroupId(mapId);
-        int channelId = map.getChannelServer().getId();
+        int channelId = map.getChannel();
         String key = getKey(channelId, groupId);
 
-        DamageStatisticsInstance inst = instances.remove(key);
+        DamageStatisticsInstance inst = instances.get(key);
         if (inst != null) {
             inst.broadcastFinalRanking(map);
-            inst.stop();
+            log.info("副本组 {} 频道 {} 已结算（实例未停止）", groupId, channelId);
+        } else {
+            log.warn("结算时未找到副本组 {} 频道 {} 的实例", groupId, channelId);
         }
     }
 
-    // ✅ 新增：最终伤害显示函数
+    // ✅ 新增：最终伤害显示函数（实例停止后也能获取数据）
     public String getFinalDamageDisplay(int mapId) {
         int groupId = getGroupId(mapId);
 
@@ -564,7 +564,7 @@ public class DamageStatisticsManager {
             String key = getKey(ch, groupId);
             DamageStatisticsInstance inst = instances.get(key);
 
-            if (inst != null && inst.isEnabled()) {
+            if (inst != null) {
                 return buildFinalDisplay(inst, groupId);
             }
         }
@@ -572,11 +572,13 @@ public class DamageStatisticsManager {
     }
 
     private String buildFinalDisplay(DamageStatisticsInstance inst, int groupId) {
-        List<Map.Entry<Integer, Long>> sortedData = inst.damageData.entrySet().stream()
+        // 从实例获取数据（即使已停止也能获取）
+        Map<Integer, Long> damageData = inst.getDamageData();
+        if (damageData.isEmpty()) return null;
+
+        List<Map.Entry<Integer, Long>> sortedData = damageData.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .collect(Collectors.toList());
-
-        if (sortedData.isEmpty()) return null;
 
         StringBuilder sb = new StringBuilder();
         String bossName = getBossName(groupId);
@@ -667,6 +669,37 @@ public class DamageStatisticsManager {
         log.info("收到停止命令，各副本统计将在5分钟无伤害后自动停止");
     }
 
+    // ✅ 修改：stop方法带mapId和channelId参数，精确关闭
+    public void stop(int mapId, int channelId) {
+        int groupId = getGroupId(mapId);
+        String key = getKey(channelId, groupId);
+
+        // 检查是否是多地图副本
+        int[] groupMaps = getGroupMaps(groupId);
+        if (groupMaps.length > 1) {
+            // 多地图副本：关闭该频道下所有相关地图的实例
+            log.info("副本组 {} 是多地图副本，关闭频道 {} 下所有地图实例", groupId, channelId);
+            for (int relatedMapId : groupMaps) {
+                String relatedKey = getKey(channelId, getGroupId(relatedMapId));
+                DamageStatisticsInstance inst = instances.remove(relatedKey);
+                if (inst != null) {
+                    inst.stop();
+                    log.info("副本组 {} 频道 {} 地图 {} 伤害统计已停止", groupId, channelId, relatedMapId);
+                }
+            }
+        } else {
+            // 单地图副本：只关闭指定地图
+            DamageStatisticsInstance inst = instances.remove(key);
+            if (inst != null) {
+                inst.stop();
+                log.info("副本组 {} 频道 {} 伤害统计已停止", groupId, channelId);
+            } else {
+                log.warn("停止时未找到副本组 {} 频道 {} 的实例", groupId, channelId);
+            }
+        }
+    }
+
+    // ✅ 保留：单参数stop（兼容旧代码，停止所有频道的该groupId）
     public void stop(int mapId) {
         int groupId = getGroupId(mapId);
 

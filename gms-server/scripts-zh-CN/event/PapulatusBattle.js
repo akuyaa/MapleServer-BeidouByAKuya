@@ -135,8 +135,10 @@ function setup(level, lobbyid) {
 
     // ✅ 启用伤害统计
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().enable();
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().startBroadcastTimer(map);
+        var channel = getChannelFromEim(eim);
+        var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable(channel, entryMap);  // 传入频道和地图ID
+        DamageStatsMgr.startBroadcastTimer(map);
         print("[PapulatusBattle] 伤害统计已启用");
     } catch (e) {
         print("[PapulatusBattle] 启用失败: " + e);
@@ -352,12 +354,38 @@ function dispose(eim) {
     disposed = true;
 
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap, channel);
     } catch (e) { }
 
     if (!eim.isEventCleared()) {
         updateGateState(0);
     }
+}
+
+// 1. 复制 getChannelFromEim 方法
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    return 1;
 }
 
 // ✅ 新增：远征队人数检查函数（完全参考扎昆逻辑）

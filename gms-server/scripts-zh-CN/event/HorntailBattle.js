@@ -98,7 +98,7 @@ function setup(channel) {
     // ✅ 启用黑龙三地图伤害统计（传入任意一个地图ID即可，内部共享）
     try {
         var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-        DamageStatsMgr.enable(240060000);  // 启用黑龙组（240060000作为组标识）
+        DamageStatsMgr.enable(channel,240060000);  // 启用黑龙组（240060000作为组标识）
         print("[HorntailBattle] 黑龙三地图伤害统计已启用 (240060000-240060200)");
     } catch (e) {
         print("[HorntailBattle] 启用统计失败: " + e);
@@ -258,7 +258,7 @@ function monsterKilled(mob, eim) {
         } catch (e) {
             print("[HorntailBattle] ❌ 发放奖励失败: " + e);
         }
-
+        
 
         // ✅ 广播最终伤害排名（向黑龙组所有地图广播）
         try {
@@ -285,15 +285,58 @@ function allMonstersDead(eim) { }
 
 function cancelSchedule() { }
 
+// function dispose(eim) {
+//     // ✅ 停止黑龙组伤害统计（传入任意一个地图ID即可）
+//     try {
+//         var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+//         DamageStatsMgr.stop(240060000);  // 停止整个黑龙组
+//         print("[HorntailBattle] 黑龙组伤害统计已停止");
+//     } catch (e) {
+//         print("[HorntailBattle] 停止统计失败: " + e);
+//     }
+// }
+
 function dispose(eim) {
-    // ✅ 停止黑龙组伤害统计（传入任意一个地图ID即可）
+    // ✅ 停止黑龙组伤害统计（传入频道和地图ID）
     try {
         var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-        DamageStatsMgr.stop(240060000);  // 停止整个黑龙组
-        print("[HorntailBattle] 黑龙组伤害统计已停止");
+        var channel = getChannelFromEim(eim);
+        DamageStatsMgr.stop(entryMap, channel);  // 停止该频道的黑龙组
+        print("[HorntailBattle] 黑龙组伤害统计已停止（频道: " + channel + "）");
     } catch (e) {
         print("[HorntailBattle] 停止统计失败: " + e);
     }
+
+    if (!eim.isEventCleared()) updateGateState(0);
+}
+
+// ✅ 通用方法：从EIM获取频道ID（可复制到其他BOSS脚本）
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        // 尝试从名称解析：BossName + channel 格式，如 "Horntail1", "TianHuang2"
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        // 如果名称解析失败，尝试从eim获取channel属性
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    // 默认返回1
+    return 1;
 }
 
 function partyPlayersCheck(eim, player) {

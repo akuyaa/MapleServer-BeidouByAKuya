@@ -76,7 +76,8 @@ function setup(channel) {
         // ✅ 启用伤害统计系统
         try {
             const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-            DamageStatsMgr.enable();
+            // 使用双参数版本，明确指定频道和地图
+            DamageStatsMgr.enable(channel,800040410);  // channel就是setup函数的参数
             DamageStatsMgr.startBroadcastTimer(map);
             print("[TianHuangBattle] ✅ 伤害统计已启用");
         } catch (e) {
@@ -210,11 +211,41 @@ function updateGateState(newState) { }
 function dispose(eim) {
     // ✅ 停止伤害统计
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        var channel = getChannelFromEim(eim);
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap,channel);
         print("[TianHuangBattle] ✅ 伤害统计已停止");
     } catch (e) {
         print("[TianHuangBattle] ❌ 停止伤害统计失败: " + e);
     }
 
     if (!eim.isEventCleared()) updateGateState(0);
+}
+
+// ✅ 通用方法：从EIM获取频道ID（可复制到其他BOSS脚本）
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        // 尝试从名称解析：BossName + channel 格式，如 "Horntail1", "TianHuang2"
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        // 如果名称解析失败，尝试从eim获取channel属性
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    // 默认返回1
+    return 1;
 }

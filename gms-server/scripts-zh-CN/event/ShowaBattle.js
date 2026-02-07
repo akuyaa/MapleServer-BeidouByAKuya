@@ -121,8 +121,8 @@ function setup(channel) {
 
     // ✅ 启用伤害统计（绑定主战斗地图）
     try {
-        const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-        DamageStatsMgr.enable();
+        var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+        DamageStatsMgr.enable(channel, entryMap);  // 传入频道和地图ID
         DamageStatsMgr.startBroadcastTimer(bossMap);
         print("[ShowaBattle] ✅ 伤害统计已启用");
     } catch (e) {
@@ -349,11 +349,37 @@ function cancelSchedule() { }
 function dispose(eim) {
     // ✅ 停止伤害统计
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap, channel);
         print("[ShowaBattle] ✅ 伤害统计已停止");
     } catch (e) {
         print("[ShowaBattle] ❌ 停止伤害统计失败: " + e);
     }
+}
+
+// 1. 复制 getChannelFromEim 方法
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    return 1;
 }
 
 /**

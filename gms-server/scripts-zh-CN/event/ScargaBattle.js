@@ -113,7 +113,7 @@ function setup(channel) {
     // ✅ 启用伤害统计
     try {
         const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-        DamageStatsMgr.enable();
+        DamageStatsMgr.enable(channel, entryMap);
         var bossMap = eim.getInstanceMap(entryMap);
         DamageStatsMgr.startBroadcastTimer(bossMap);
         print("[ScargaBattle] ✅ 伤害统计已启用");
@@ -313,12 +313,40 @@ function cancelSchedule() { }
 function dispose(eim) {
     // ✅ 停止伤害统计
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        var channel = getChannelFromEim(eim);
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap, channel);
         print("[ScargaBattle] ✅ 伤害统计已停止");
     } catch (e) {
         print("[ScargaBattle] ❌ 停止伤害统计失败: " + e);
     }
 }
+
+// 1. 复制 getChannelFromEim 方法
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    return 1;
+}
+
 
 /**
  * 检测队伍人数是否满足最低人数要求

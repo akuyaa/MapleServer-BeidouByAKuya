@@ -64,7 +64,7 @@ function setup(channel) {
             print("[YaoSengBattle] ❌ entryMap is null! ID=" + entryMap);
             return null;
         }
-
+        
         // 地图重置（这会刷出WZ预置的怪物）
         map.resetPQ(1);
 
@@ -72,7 +72,7 @@ function setup(channel) {
         var hasBoss = false;
         var monsters = map.getAllMonsters();
         var iter = monsters.iterator();
-
+        
         while (iter.hasNext()) {
             var mob = iter.next();
             if (mob.getId() == BOSS_ID) {
@@ -81,7 +81,7 @@ function setup(channel) {
                 break;
             }
         }
-
+        
         // 只有WZ没预置时，才手动刷
         if (!hasBoss) {
             var boss = em.getMonster(BOSS_ID);
@@ -93,7 +93,7 @@ function setup(channel) {
                 return null;
             }
         }
-
+        
         // 验证最终数量
         print("[YaoSengBattle] Total monsters on map: " + map.getAllMonsters().size());
         // ===========================================
@@ -105,8 +105,8 @@ function setup(channel) {
 
         // ✅ 启用伤害统计
         try {
-            const DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
-            DamageStatsMgr.enable();
+            var DamageStatsMgr = Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance();
+            DamageStatsMgr.enable(channel, entryMap);  // 传入频道和地图ID
             DamageStatsMgr.startBroadcastTimer(map);
             print("[YaoSengBattle] ✅ 伤害统计已启用");
         } catch (e) {
@@ -172,7 +172,7 @@ function isYaoSeng(mob) {
 function monsterKilled(mob, eim) {
     if (isYaoSeng(mob)) {
         print("[YaoSengBattle] Boss YaoSeng killed!");
-
+        
         // ✅ 广播最终伤害排名（妖僧死亡时）
         try {
             Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance()
@@ -181,7 +181,7 @@ function monsterKilled(mob, eim) {
         } catch (e) {
             print("[YaoSengBattle] ❌ 广播伤害排名失败: " + e);
         }
-
+        
         eim.setIntProperty("defeatedBoss", 1);
         eim.showClearEffect(mob.getMap().getId());
         eim.clearPQ();
@@ -218,12 +218,38 @@ function cancelSchedule() {}
 function updateGateState(newState) {}
 function dispose(eim) {
     if (!eim.isEventCleared()) updateGateState(0);
-
+    
     // ✅ 停止伤害统计
     try {
-        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop();
+        Java.type('org.gms.server.maps.DamageStatisticsManager').getInstance().stop(entryMap, channel);
         print("[YaoSengBattle] ✅ 伤害统计已停止");
     } catch (e) {
         print("[YaoSengBattle] ❌ 停止伤害统计失败: " + e);
     }
+}
+
+// 1. 复制 getChannelFromEim 方法
+function getChannelFromEim(eim) {
+    try {
+        var eimName = eim.getName();
+        for (var i = 0; i < eimName.length; i++) {
+            var char = eimName.charAt(i);
+            if (char >= '0' && char <= '9') {
+                var channel = parseInt(eimName.substring(i));
+                if (!isNaN(channel) && channel > 0) {
+                    return channel;
+                }
+            }
+        }
+        var channelProp = eim.getProperty("channel");
+        if (channelProp != null) {
+            var channel = parseInt(channelProp);
+            if (!isNaN(channel) && channel > 0) {
+                return channel;
+            }
+        }
+    } catch (e) {
+        print("[getChannelFromEim] 解析频道失败: " + e);
+    }
+    return 1;
 }
