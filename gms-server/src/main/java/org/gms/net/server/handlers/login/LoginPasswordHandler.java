@@ -59,7 +59,7 @@ public final class LoginPasswordHandler implements PacketHandler {
         p.skip(6);   // localhost masked the initial part with zeroes...
         byte[] hwidNibbles = p.readBytes(4);
         Hwid hwid = new Hwid(HexTool.toCompactHexString(hwidNibbles));
-        int loginok = c.login(login, pwd, hwid);
+        int loginok = c.login(login, pwd, hwid,remoteHost);
 
         if (GameConfig.getServerBoolean("automatic_register") && loginok == 5) {
             try (Connection con = DatabaseConnection.getConnection();
@@ -78,7 +78,7 @@ public final class LoginPasswordHandler implements PacketHandler {
                 c.setAccID(-1);
                 e.printStackTrace();
             } finally {
-                loginok = c.login(login, pwd, hwid);
+                loginok = c.login(login, pwd, hwid,remoteHost);
             }
         }
 

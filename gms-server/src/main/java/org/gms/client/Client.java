@@ -650,16 +650,15 @@ public class Client extends ChannelInboundHandlerAdapter {
         return false;
     }
 
-    public int login(String login, String pwd, Hwid hwid) {
+    public int login(String login, String pwd, Hwid hwid,String ip) {
         int loginok = 5;
 
         loginattempt++;
         if (loginattempt > 4) {
             loggedIn = false;
             SessionCoordinator.getInstance().closeSession(this, false);
-            return 6;   // thanks Survival_Project for finding out an issue with AUTOMATIC_REGISTER here
+            return 6;
         }
-
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement("SELECT id, password, gender, banned, pin, pic, characterslots, tos, language FROM accounts WHERE name = ?")) {
             ps.setString(1, login);
@@ -687,16 +686,15 @@ public class Client extends ChannelInboundHandlerAdapter {
                         return 3;
                     }
 
-                    if (getLoginState() > LOGIN_NOTLOGGEDIN) { // already loggedin
+                    if (getLoginState() > LOGIN_NOTLOGGEDIN) {
                         loggedIn = false;
                         loginok = 7;
                     } else if (GameConfig.getServerBoolean("use_debug") && GameConfig.getServerBoolean("no_password")) {
-                        return 0;
+                        loginok = 0;
                     } else if (passhash.charAt(0) == '$' && passhash.charAt(1) == '2' && BCrypt.checkpw(pwd, passhash)) {
                         loginok = (tos == 0) ? 23 : 0;
                     } else if (pwd.equals(passhash) || checkHash(passhash, "SHA-1", pwd) || checkHash(passhash, "SHA-512", pwd)) {
-                        // thanks GabrielSin for detecting some no-bcrypt inconsistencies here
-                        loginok = (tos == 0) ? (!GameConfig.getServerBoolean("bcrypt_migration") ? 23 : -23) : (!GameConfig.getServerBoolean("bcrypt_migration") ? 0 : -10); // migrate to bcrypt
+                        loginok = (tos == 0) ? (!GameConfig.getServerBoolean("bcrypt_migration") ? 23 : -23) : (!GameConfig.getServerBoolean("bcrypt_migration") ? 0 : -10);
                     } else {
                         loggedIn = false;
                         loginok = 4;
@@ -710,12 +708,14 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
 
         if (loginok == 0 || loginok == 4) {
-            AntiMulticlientResult res = SessionCoordinator.getInstance().attemptLoginSession(this, hwid, accId, loginok == 4);  //loginok == 4，但是会导致限制多开参数 deterred_multi_client == true 时密码错误一次返回REMOTE_REACHED_LIMIT，需要重开客户端
+            AntiMulticlientResult res = SessionCoordinator.getInstance().attemptLoginSession(this, hwid, accId, loginok == 4);
 
             return switch (res) {
                 case SUCCESS -> {
                     if (loginok == 0) {
                         loginattempt = 0;
+                        // ✅ 登录成功，更新最后登录IP
+                        updateLastLoginIp(accId, ip);
                     }
                     yield loginok;
                 }
@@ -727,6 +727,27 @@ public class Client extends ChannelInboundHandlerAdapter {
             };
         } else {
             return loginok;
+        }
+    }
+
+    /**
+     * 更新账号最后登录IP
+     * @param accountId 账号ID
+     * @param ip 登录IP地址
+     */
+    private void updateLastLoginIp(int accountId, String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return;
+        }
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement("UPDATE accounts SET last_login_ip = ? WHERE id = ?")) {
+            ps.setString(1, ip);
+            ps.setInt(2, accountId);
+            ps.executeUpdate();
+            log.debug("账号 {} 最后登录IP已更新: {}", accountId, ip);
+        } catch (SQLException e) {
+            log.error("更新账号 {} 最后登录IP失败: {}", accountId, e.getMessage());
         }
     }
 
