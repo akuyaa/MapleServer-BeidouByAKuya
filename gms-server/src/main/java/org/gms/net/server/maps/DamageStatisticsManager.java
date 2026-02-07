@@ -523,7 +523,7 @@ public class DamageStatisticsManager {
         }
 
         int groupId = getGroupId(mapId);
-        int channelId = map.getChannel();
+        int channelId = map.getChannelServer().getId();
 
         final int finalChannelId = channelId;
         final int finalGroupId = groupId;
@@ -543,7 +543,7 @@ public class DamageStatisticsManager {
 
         int mapId = map.getId();
         int groupId = getGroupId(mapId);
-        int channelId = map.getChannel();
+        int channelId = map.getChannelServer().getId();
         String key = getKey(channelId, groupId);
 
         DamageStatisticsInstance inst = instances.get(key);
