@@ -1,6 +1,9 @@
 package org.gms.server.maps;
 
 import org.gms.client.Character;
+import org.gms.net.opcodes.SendOpcode;
+import org.gms.net.packet.OutPacket;
+import org.gms.net.packet.Packet;
 import org.gms.scripting.event.EventInstanceManager;
 import org.gms.util.PacketCreator;
 import org.gms.server.TimerManager;
@@ -79,6 +82,35 @@ public class DamageStatisticsManager {
     // ✅ 多实例管理：Key = 频道ID + ":" + BOSS组ID，确保不同频道隔离
     private final Map<String, DamageStatisticsInstance> instances = new ConcurrentHashMap<>();
 
+
+    /**
+     * 发送天气效果显示 DPS 文本
+     * 使用 FIELD_EFFECT (0x8A) subType 0x00 (BlowWeather)
+     */
+    public static Packet sendDPSWeather(String text, boolean show) {
+        OutPacket p = OutPacket.create(SendOpcode.BLOW_WEATHER);
+        if (show) {
+            p.writeByte(0);           // 0 = 显示天气效果
+            p.writeInt(5120000);      // 物品ID，影响样式（5120000 = 活动公告样式）
+            p.writeString(text);      // 显示的文本
+        } else {
+            p.writeByte(0);           // 0 = 停止（但客户端通常忽略这个）
+            p.writeInt(0);            // 停止显示
+        }
+        return p;
+    }
+
+
+
+
+    // 这个封包用于服务器-客户端同步变量，无视觉副作用！
+    public static Packet sendDPSSessionValue(String key, String value) {
+        OutPacket p = OutPacket.create(SendOpcode.SESSION_VALUE);
+        p.writeString(key);    // "DPS_DATA"
+        p.writeString(value);  // JSON 数据
+        return p;
+    }
+
     // 内部类
     private class DamageStatisticsInstance {
         private final Map<Integer, Long> damageData = new ConcurrentHashMap<>();
@@ -144,7 +176,7 @@ public class DamageStatisticsManager {
                 } catch (Exception e) {
                     log.error("副本组 {} 频道 {} 广播排名时出错", groupId, channelId, e);
                 }
-            }, 20000, 20000);  // 20秒广播一次
+            }, 5000, 5000);  // 5秒广播一次
 
             log.info("启动伤害统计定时器 - 副本组: {} 频道: {} (触发地图: {})", groupId, channelId, map.getId());
         }
@@ -186,7 +218,11 @@ public class DamageStatisticsManager {
 
                     String msg = buildRankingMessage(sortedData, nf, targetMap, mapId);
                     if (msg != null) {
-                        targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
+                        if (targetMap != null && hasAnyPlayer(targetMap)) {
+                            // 先发送天气效果测试
+                            targetMap.broadcastMessage(sendDPSWeather(msg, true));
+                        }
+//                        targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
                         log.debug("副本组 {} 频道 {} 已向地图 {} 广播伤害排名", groupId, channelId, mapId);
                     }
                 } catch (Exception e) {
