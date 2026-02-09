@@ -320,7 +320,7 @@ function dispose(eim) {
         print("[ScargaBattle] ❌ 停止伤害统计失败: " + e);
     }
 }
-
+function updateGateState(newState) { }
 // 1. 复制 getChannelFromEim 方法
 function getChannelFromEim(eim) {
     try {

@@ -309,7 +309,7 @@ function dispose(eim) {
 
     if (!eim.isEventCleared()) updateGateState(0);
 }
-
+function updateGateState(newState) { }
 // ✅ 通用方法：从EIM获取频道ID（可复制到其他BOSS脚本）
 function getChannelFromEim(eim) {
     try {

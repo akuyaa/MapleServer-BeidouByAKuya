@@ -45,7 +45,7 @@ minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : mi
 if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
     minLevel = 1, maxLevel = 999;
 }
-
+function updateGateState(newState) { }
 function init() {
     setEventRequirements();
 }

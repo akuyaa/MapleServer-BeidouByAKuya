@@ -1,5 +1,5 @@
 /*
- *  TianHuangBattle - 武林妖僧远征副本
+ *  TianHuangBattle - 天皇远征副本
  *  最小改动：仅添加伤害统计系统
  */
 

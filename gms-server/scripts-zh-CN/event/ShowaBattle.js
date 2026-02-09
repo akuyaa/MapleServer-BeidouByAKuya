@@ -131,7 +131,7 @@ function setup(channel) {
 
     return eim;
 }
-
+function updateGateState(newState) { }
 function respawnStages(eim) {
     eim.getInstanceMap(801040100).instanceMapRespawn();
     eim.schedule("respawnStages", 15 * 1000);
