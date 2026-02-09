@@ -83,24 +83,103 @@ public class DamageStatisticsManager {
     private final Map<String, DamageStatisticsInstance> instances = new ConcurrentHashMap<>();
 
 
+
+
     /**
-     * 发送天气效果显示 DPS 文本
+     * 发送天气效果显示 DPS 文本（自动换行，每行22个字符）
      * 使用 FIELD_EFFECT (0x8A) subType 0x00 (BlowWeather)
      */
     public static Packet sendDPSWeather(String text, boolean show) {
         OutPacket p = OutPacket.create(SendOpcode.BLOW_WEATHER);
         if (show) {
             p.writeByte(0);           // 0 = 显示天气效果
-            p.writeInt(5120000);      // 物品ID，影响样式（5120000 = 活动公告样式）
-            p.writeString(text);      // 显示的文本
+            p.writeInt(5120000);      // 物品ID，影响样式
+
+            // 自动换行处理：每22个字符插入 \r\n
+            String wrappedText = wrapText(text, 22);
+            p.writeString(wrappedText);
         } else {
-            p.writeByte(0);           // 0 = 停止（但客户端通常忽略这个）
-            p.writeInt(0);            // 停止显示
+            p.writeByte(0);
+            p.writeInt(0);
         }
         return p;
     }
 
+    /**
+     * 固定宽度换行（每行指定字符数）
+     */
+    private static String wrapText(String text, int lineLength) {
+        if (text == null || text.length() <= lineLength) {
+            return text;
+        }
 
+        StringBuilder result = new StringBuilder();
+        int currentPos = 0;
+
+        while (currentPos < text.length()) {
+            // 计算当前行结束位置
+            int endPos = Math.min(currentPos + lineLength, text.length());
+
+            // 添加当前行内容
+            result.append(text, currentPos, endPos);
+
+            // 如果不是最后一行，添加换行符
+            if (endPos < text.length()) {
+                result.append("\r\n");
+            }
+
+            currentPos = endPos;
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * 发送 DPS 提示（自动换行，支持多行）
+     * 使用 SendOpcode.PLAYER_HINT (0xD6)
+     */
+    public static Packet sendDPSPlayerHint(String text) {
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        OutPacket p = OutPacket.create(SendOpcode.PLAYER_HINT);
+        String wrappedText = wrapText(text, 22);
+        p.writeString(wrappedText);      // 支持 \r\n 换行
+        p.writeShort(280);        // 宽度（像素）控制换行位置
+        p.writeShort(150);        // 高度（像素）
+        p.writeByte(1);           // 类型
+        log.info(wrappedText);
+        return p;
+    }
+
+    /**
+     * 发送多行 DPS 文本（SERVERMESSAGE，支持换行）
+     * 使用 SendOpcode.SERVERMESSAGE (0x44)
+     */
+    public static Packet sendDPSServerMessage(String text) {
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+        OutPacket p = OutPacket.create(SendOpcode.SERVERMESSAGE);
+        p.writeByte(4);           // 类型 4 = 粉色公告（居中，有背景）
+        p.writeByte(0);           // 未知
+        // 自动换行处理：每22个字符插入 \r\n
+        String wrappedText = wrapText(text, 22);
+        p.writeString(wrappedText);      // 支持 \r\n 换行
+        log.info(wrappedText);
+        return p;
+    }
+
+// 其他类型可选：
+// p.writeByte(0); // 蓝色系统消息（顶部）
+// p.writeByte(1); // 弹出框
+// p.writeByte(2); // 顶部滚动
+// p.writeByte(4); // 粉色居中（推荐）
+// p.writeByte(5); // 黄色系统消息
 
 
     // 这个封包用于服务器-客户端同步变量，无视觉副作用！
@@ -176,7 +255,7 @@ public class DamageStatisticsManager {
                 } catch (Exception e) {
                     log.error("副本组 {} 频道 {} 广播排名时出错", groupId, channelId, e);
                 }
-            }, 5000, 5000);  // 5秒广播一次
+            }, 20000, 20000);  // 5秒广播一次
 
             log.info("启动伤害统计定时器 - 副本组: {} 频道: {} (触发地图: {})", groupId, channelId, map.getId());
         }
@@ -220,9 +299,11 @@ public class DamageStatisticsManager {
                     if (msg != null) {
                         if (targetMap != null && hasAnyPlayer(targetMap)) {
                             // 先发送天气效果测试
-                            targetMap.broadcastMessage(sendDPSWeather(msg, true));
+//                            targetMap.broadcastMessage(sendDPSWeather(msg, true));
+                            //气泡方式（出现在玩家头上）
+//                            targetMap.broadcastMessage(sendDPSPlayerHint(msg));
+                            targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
                         }
-//                        targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
                         log.debug("副本组 {} 频道 {} 已向地图 {} 广播伤害排名", groupId, channelId, mapId);
                     }
                 } catch (Exception e) {
