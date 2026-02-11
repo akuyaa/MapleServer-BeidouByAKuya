@@ -139,11 +139,11 @@ public class DamageStatisticsManager {
      * 使用 SendOpcode.PLAYER_HINT (0xD6)
      */
     public static Packet sendDPSPlayerHint(String text) {
-        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
-        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
-        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
-        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
-        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+//        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+//        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+//        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+//        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
+//        text+="1.玩家AAAAAAA:15420万 2.玩家BBBBBBB:12300万 3.玩家CCCCCCC:9800万";
         OutPacket p = OutPacket.create(SendOpcode.PLAYER_HINT);
         String wrappedText = wrapText(text, 22);
         p.writeString(wrappedText);      // 支持 \r\n 换行
@@ -151,6 +151,28 @@ public class DamageStatisticsManager {
         p.writeShort(150);        // 高度（像素）
         p.writeByte(1);           // 类型
         log.info(wrappedText);
+        return p;
+    }
+
+    // 这个封包在 v83 中通常是空白的或显示活动公告
+    // 但客户端完全支持接收，只是原版很少用！
+
+    public static Packet sendDPSEventData(String jsonData) {
+        OutPacket p = OutPacket.create(SendOpcode.FIELD_EFFECT);
+        p.writeByte(0x07);           // subType = 周活动消息
+        p.writeString(jsonData);     // 你的 DPS JSON 数据
+        return p;
+    }
+
+    /**
+     * 发送 DPS 数据（无视觉显示，纯数据传输）
+     * 使用 SendOpcode.SESSION_VALUE (0x5A)
+     */
+    public static Packet sendDPSData(String key, String value) {
+        OutPacket p = OutPacket.create(SendOpcode.SESSION_VALUE);
+        p.writeString(key);       // "dps_ranking"
+        p.writeString(value);     // JSON 或自定义格式数据
+        log.info("[dps string]:{}",key+value);
         return p;
     }
 
@@ -255,7 +277,8 @@ public class DamageStatisticsManager {
                 } catch (Exception e) {
                     log.error("副本组 {} 频道 {} 广播排名时出错", groupId, channelId, e);
                 }
-            }, 20000, 20000);  // 5秒广播一次
+            }, 20000, 20000);  // 20秒广播一次
+//            }, 5000, 5000);  // 5秒广播一次
 
             log.info("启动伤害统计定时器 - 副本组: {} 频道: {} (触发地图: {})", groupId, channelId, map.getId());
         }
@@ -302,6 +325,7 @@ public class DamageStatisticsManager {
 //                            targetMap.broadcastMessage(sendDPSWeather(msg, true));
                             //气泡方式（出现在玩家头上）
 //                            targetMap.broadcastMessage(sendDPSPlayerHint(msg));
+//                            targetMap.broadcastMessage(sendDPSData("dps_ranking",msg));
                             targetMap.broadcastMessage(PacketCreator.serverNotice(5, msg));
                         }
                         log.debug("副本组 {} 频道 {} 已向地图 {} 广播伤害排名", groupId, channelId, mapId);

@@ -101,6 +101,9 @@ export default {
   'account.player.dropRate': 'Drop Rate',
   'account.player.bossRate': 'Boss Rate',
   'account.player.gm': 'GM Lv',
+  'account.player.accountId': 'Account Id',
+  'account.player.account': 'Account',
+  'account.player.ip': 'IP',
   'account.player.fame': 'Fame',
 
   'account.player.form.player': 'Player',

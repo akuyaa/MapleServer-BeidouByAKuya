@@ -83,6 +83,9 @@ export default {
   'account.player.jobName': '职业名称',
   'account.player.level': '等级',
   'account.player.gm.level': 'GM 等级',
+  'account.player.accountId': '账号id',
+  'account.player.account': '账号',
+  'account.player.ip': 'IP地址',
 
   'account.player.button.globalGive': '全服发放资源',
   'account.player.button.give': '发放资源',

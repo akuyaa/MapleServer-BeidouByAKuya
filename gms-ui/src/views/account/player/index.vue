@@ -4,21 +4,33 @@
     <a-card class="general-card" :title="$t('menu.account.player')">
       <a-form :model="filterForm" class="a-from-keyword">
         <a-row :gutter="16">
-          <a-col :span="6">
+          <!-- change span to 4 so all six search inputs fit on one line (24-grid) -->
+          <a-col :span="4">
             <a-form-item :label="$t('account.player.id')">
               <a-input-number v-model="filterForm.id" />
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :span="4">
             <a-form-item :label="$t('account.player.name')">
               <a-input v-model="filterForm.name" />
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :span="4">
             <a-form-item :label="$t('account.player.mapId')">
               <a-input-number v-model="filterForm.map" />
             </a-form-item>
           </a-col>
+          <a-col :span="4">
+            <a-form-item :label="$t('account.player.ip')">
+              <a-input v-model="filterForm.ip" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item :label="$t('account.player.accountId')">
+              <a-input v-model="filterForm.accountId" />
+            </a-form-item>
+          </a-col>
+          <!-- removed account search input per requirement -->
         </a-row>
       </a-form>
       <a-space>
@@ -76,6 +88,24 @@
             align="center"
           />
           <a-table-column
+            :title="$t('account.player.accountId')"
+            data-index="accountId"
+            :width="120"
+            align="center"
+          />
+          <a-table-column
+            :title="$t('account.player.account')"
+            data-index="account"
+            :width="160"
+            align="center"
+          />
+          <a-table-column
+            :title="$t('account.player.ip')"
+            data-index="ip"
+            :width="160"
+            align="center"
+          />
+          <a-table-column
             :title="$t('account.player.map')"
             data-index="map"
             :width="120"
@@ -105,6 +135,7 @@
             :width="70"
             align="center"
           />
+          <!-- removed duplicate accountId/account/ip smaller columns (kept the larger-width columns above) -->
           <a-table-column :title="$t('account.list.column.operate')">
             <template #cell="{ record }">
               <a-button type="text" size="mini" @click="giveClick(record)">
@@ -319,10 +350,14 @@
     id?: number;
     name?: string;
     map?: number;
+    ip?: string;
+    accountId?: number;
   }>({
     id: undefined,
     name: undefined,
     map: undefined,
+    ip: undefined,
+    accountId: undefined,
   });
   const giveFormVisible = ref(false);
   const giveFormTitle = ref('');
@@ -364,7 +399,9 @@
         size.value,
         filterForm.value.id,
         filterForm.value.name,
-        filterForm.value.map
+        filterForm.value.map,
+        filterForm.value.ip,
+        filterForm.value.accountId
       );
       tableData.value = data.records;
       total.value = data.totalRow;
@@ -394,6 +431,8 @@
     filterForm.value.id = undefined;
     filterForm.value.name = undefined;
     filterForm.value.map = undefined;
+    filterForm.value.ip = undefined;
+    filterForm.value.accountId = undefined;
     page.value = 1;
     loadData();
   };

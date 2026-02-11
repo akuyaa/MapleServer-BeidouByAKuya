@@ -100,19 +100,24 @@ public class CharacterService {
 
     public Page<ChrOnlineListRtnDTO> getChrOnlineList(ChrOnlineListReqDTO request) {
         Collection<Character> chrList = Server.getInstance().getWorld(request.getWorld()).getPlayerStorage().getAllCharacters();
-        return BasePageUtil.create(chrList, request)
-                .filter(chr -> (Objects.isNull(request.getId()) || Objects.equals(chr.getId(), request.getId()))
-                        && (RequireUtil.isEmpty(request.getName()) || chr.getName().contains(request.getName()))
-                        && (Objects.isNull(request.getMap()) || Objects.equals(chr.getMap().getId(), request.getMap())))
-                .page(chr -> ChrOnlineListRtnDTO.builder()
-                        .id(chr.getId())
-                        .name(chr.getName())
-                        .map(chr.getMap().getId())
-                        .job(chr.getJob().getId())
-                        .jobName(chr.getJob().getName())
-                        .level(chr.getLevel())
-                        .gm(chr.gmLevel())
-                        .build());
+    return BasePageUtil.create(chrList, request)
+        .filter(chr -> (Objects.isNull(request.getId()) || Objects.equals(chr.getId(), request.getId()))
+            && (RequireUtil.isEmpty(request.getName()) || chr.getName().contains(request.getName()))
+            && (Objects.isNull(request.getMap()) || Objects.equals(chr.getMap().getId(), request.getMap()))
+            && (Objects.isNull(request.getAccountId()) || Objects.equals(chr.getAccountId(), request.getAccountId()))
+                        && (RequireUtil.isEmpty(request.getIp()) || (chr.getClient() != null && chr.getClient().getRemoteAddress() != null && !chr.getClient().getRemoteAddress().isEmpty() && chr.getClient().getRemoteAddress().contains(request.getIp()))))
+        .page(chr -> ChrOnlineListRtnDTO.builder()
+            .id(chr.getId())
+            .name(chr.getName())
+            .map(chr.getMap().getId())
+            .job(chr.getJob().getId())
+            .jobName(chr.getJob().getName())
+            .level(chr.getLevel())
+            .gm(chr.gmLevel())
+            .accountId(chr.getAccountId())
+            .account(chr.getClient() != null ? chr.getClient().getAccountName() : null)
+            .ip(chr.getClient() != null ? chr.getClient().getRemoteAddress() : null)
+            .build());
     }
 
     public void updateRate(ExtendValueDO data) {

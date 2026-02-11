@@ -17,5 +17,8 @@ public class ChrOnlineListRtnDTO {
     private String jobName;
     private int level;
     private int gm;
+    private Integer accountId;
+    private String account;
+    private String ip;
 
 }
