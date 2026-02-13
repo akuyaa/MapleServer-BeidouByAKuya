@@ -86,7 +86,7 @@ export default {
   'account.player.accountId': '账号id',
   'account.player.account': '账号',
   'account.player.ip': 'IP地址',
-
+  'account.player.mapName': '地图名称',
   'account.player.button.globalGive': '全服发放资源',
   'account.player.button.give': '发放资源',
   'account.player.nxCredit': '点券',

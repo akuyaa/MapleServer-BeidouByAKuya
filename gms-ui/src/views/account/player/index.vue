@@ -21,6 +21,11 @@
             </a-form-item>
           </a-col>
           <a-col :span="4">
+            <a-form-item :label="$t('account.player.mapName')">
+              <a-input v-model="filterForm.mapName" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
             <a-form-item :label="$t('account.player.ip')">
               <a-input v-model="filterForm.ip" />
             </a-form-item>
@@ -62,6 +67,20 @@
                 <icon-plus />
               </template>
               {{ $t('account.player.button.globalGive') }}
+            </a-button>
+            <!-- Sorting controls: Level, Job, Map, IP -->
+            <a-divider type="vertical" />
+            <a-button :type="sortField === 'level' ? 'primary' : 'outline'" size="mini" @click="toggleSort('level')">
+              等级 <span v-if="sortField === 'level'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+            </a-button>
+            <a-button :type="sortField === 'job' ? 'primary' : 'outline'" size="mini" @click="toggleSort('job')">
+              职业 <span v-if="sortField === 'job'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+            </a-button>
+            <a-button :type="sortField === 'map' ? 'primary' : 'outline'" size="mini" @click="toggleSort('map')">
+              地图 <span v-if="sortField === 'map'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+            </a-button>
+            <a-button :type="sortField === 'ip' ? 'primary' : 'outline'" size="mini" @click="toggleSort('ip')">
+              IP <span v-if="sortField === 'ip'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
             </a-button>
           </a-space>
         </a-col>
@@ -109,6 +128,12 @@
             :title="$t('account.player.map')"
             data-index="map"
             :width="120"
+            align="center"
+          />
+          <a-table-column
+            :title="$t('account.player.mapName')"
+            data-index="mapName"
+            :width="200"
             align="center"
           />
           <a-table-column
@@ -346,16 +371,20 @@
   const total = ref(0);
   const page = ref(1);
   const size = ref(14);
+  const sortField = ref<string | null>(null);
+  const sortOrder = ref<'asc' | 'desc' | null>(null);
   const filterForm = ref<{
     id?: number;
     name?: string;
     map?: number;
+    mapName?: string;
     ip?: string;
     accountId?: number;
   }>({
     id: undefined,
     name: undefined,
     map: undefined,
+    mapName: undefined,
     ip: undefined,
     accountId: undefined,
   });
@@ -401,7 +430,10 @@
         filterForm.value.name,
         filterForm.value.map,
         filterForm.value.ip,
-        filterForm.value.accountId
+        filterForm.value.accountId,
+        filterForm.value.mapName,
+        sortField.value || undefined,
+        sortOrder.value || undefined
       );
       tableData.value = data.records;
       total.value = data.totalRow;
@@ -431,8 +463,23 @@
     filterForm.value.id = undefined;
     filterForm.value.name = undefined;
     filterForm.value.map = undefined;
+    filterForm.value.mapName = undefined;
     filterForm.value.ip = undefined;
     filterForm.value.accountId = undefined;
+    page.value = 1;
+    sortField.value = null;
+    sortOrder.value = null;
+    loadData();
+  };
+
+  const toggleSort = (field: string) => {
+    if (sortField.value !== field) {
+      sortField.value = field;
+      sortOrder.value = 'desc';
+    } else {
+      // toggle
+      sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
+    }
     page.value = 1;
     loadData();
   };

@@ -35,7 +35,10 @@ export function getPlayerList(
   map?: number,
   ip?: string,
   accountId?: number,
-  account?: string
+  account?: string,
+  mapName?: string,
+  sortField?: string,
+  sortOrder?: string
 ) {
   return axios.post('/character/v1/online/list', {
     pageNo,
@@ -46,6 +49,9 @@ export function getPlayerList(
     ip,
     accountId,
     account,
+    mapName,
+    sortField,
+    sortOrder,
   });
 }
 

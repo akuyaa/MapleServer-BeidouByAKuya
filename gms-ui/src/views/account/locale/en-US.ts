@@ -104,6 +104,7 @@ export default {
   'account.player.accountId': 'Account Id',
   'account.player.account': 'Account',
   'account.player.ip': 'IP',
+  'account.player.mapName': 'MapName',
   'account.player.fame': 'Fame',
 
   'account.player.form.player': 'Player',

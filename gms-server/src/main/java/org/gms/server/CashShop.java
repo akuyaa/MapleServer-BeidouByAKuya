@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.gms.server;
 
+import lombok.extern.slf4j.Slf4j;
+
 import lombok.Getter;
 import net.jcip.annotations.GuardedBy;
 import org.gms.client.inventory.Equip;
@@ -65,6 +67,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Flav
  * @author Ponk
  */
+@Slf4j
 public class CashShop {
     public static final int NX_CREDIT = 1;
     public static final int MAPLE_POINT = 2;
@@ -131,10 +134,21 @@ public class CashShop {
         private static final Map<Integer, ModifiedCashItemDO> modifiedCashItems = new HashMap<>();
 
         public static void loadAllCashItems() {
-            DataProvider etc = DataProviderFactory.getDataProvider(WZFiles.ETC);
+            try {
+                DataProvider etc = DataProviderFactory.getDataProvider(WZFiles.ETC);
 
-            Map<Integer, ModifiedCashItemDO> loadedItems = new HashMap<>();
-            for (Data item : etc.getData("Commodity.img").getChildren()) {
+                if (etc == null || etc.getData("Commodity.img") == null) {
+                    log.warn("WZ ETC data provider or Commodity.img not available - skipping cash items load");
+                    CashItemFactory.items = new HashMap<>();
+                    CashItemFactory.packages = new HashMap<>();
+                    // still attempt to load categories and modified items from DB
+                    loadCashCategories();
+                    loadAllModifiedCashItems();
+                    return;
+                }
+
+                Map<Integer, ModifiedCashItemDO> loadedItems = new HashMap<>();
+                for (Data item : etc.getData("Commodity.img").getChildren()) {
                 int sn = DataTool.getIntConvert("SN", item);
                 int itemId = DataTool.getIntConvert("ItemId", item);
                 int price = DataTool.getIntConvert("Price", item, 0);
@@ -188,10 +202,17 @@ public class CashShop {
 
                 loadedPackages.put(Integer.parseInt(cashPackage.getName()), cPackage);
             }
-            CashItemFactory.packages = loadedPackages;
-
-            loadCashCategories();
-            loadAllModifiedCashItems();
+            } catch (Exception ex) {
+                log.error("Failed to load cash items from WZ files, continuing with empty cash item set", ex);
+                CashItemFactory.items = new HashMap<>();
+                CashItemFactory.packages = new HashMap<>();
+                try {
+                    loadCashCategories();
+                    loadAllModifiedCashItems();
+                } catch (Exception inner) {
+                    log.warn("Failed to load cash categories or modified items from DB", inner);
+                }
+            }
         }
 
         public static void loadAllModifiedCashItems() {

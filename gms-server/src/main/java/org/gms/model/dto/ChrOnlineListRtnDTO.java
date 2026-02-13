@@ -13,6 +13,7 @@ public class ChrOnlineListRtnDTO {
     private int id;
     private String name;
     private int map;
+    private String mapName;
     private int job;
     private String jobName;
     private int level;

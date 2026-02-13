@@ -99,17 +99,52 @@ public class CharacterService {
     }
 
     public Page<ChrOnlineListRtnDTO> getChrOnlineList(ChrOnlineListReqDTO request) {
+        // debug: log incoming request and number of online characters
         Collection<Character> chrList = Server.getInstance().getWorld(request.getWorld()).getPlayerStorage().getAllCharacters();
-    return BasePageUtil.create(chrList, request)
-        .filter(chr -> (Objects.isNull(request.getId()) || Objects.equals(chr.getId(), request.getId()))
-            && (RequireUtil.isEmpty(request.getName()) || chr.getName().contains(request.getName()))
-            && (Objects.isNull(request.getMap()) || Objects.equals(chr.getMap().getId(), request.getMap()))
-            && (Objects.isNull(request.getAccountId()) || Objects.equals(chr.getAccountId(), request.getAccountId()))
-                        && (RequireUtil.isEmpty(request.getIp()) || (chr.getClient() != null && chr.getClient().getRemoteAddress() != null && !chr.getClient().getRemoteAddress().isEmpty() && chr.getClient().getRemoteAddress().contains(request.getIp()))))
-        .page(chr -> ChrOnlineListRtnDTO.builder()
+        log.info("getChrOnlineList called: world={}, pageNo={}, pageSize={}, sortField={}, sortOrder={}, totalOnline={}",
+            request.getWorld(), request.getPageNo(), request.getPageSize(), request.getSortField(), request.getSortOrder(), chrList == null ? 0 : chrList.size());
+
+        BasePageUtil<Character> util = BasePageUtil.create(chrList, request)
+            .filter(chr -> (Objects.isNull(request.getId()) || Objects.equals(chr.getId(), request.getId()))
+                && (RequireUtil.isEmpty(request.getName()) || chr.getName().contains(request.getName()))
+                && (Objects.isNull(request.getMap()) || (chr.getMap() != null && Objects.equals(chr.getMap().getId(), request.getMap())))
+                && (RequireUtil.isEmpty(request.getMapName()) || (chr.getMap() != null && chr.getMap().getMapName() != null && chr.getMap().getMapName().contains(request.getMapName())))
+                && (Objects.isNull(request.getAccountId()) || Objects.equals(chr.getAccountId(), request.getAccountId()))
+                && (RequireUtil.isEmpty(request.getIp()) || (chr.getClient() != null && chr.getClient().getRemoteAddress() != null && !chr.getClient().getRemoteAddress().isEmpty() && chr.getClient().getRemoteAddress().contains(request.getIp()))));
+
+        // apply sorting if requested - add defensive logging and catch any exceptions so sorting can't break response
+        if (!RequireUtil.isEmpty(request.getSortField())) {
+            String sf = request.getSortField();
+            String so = RequireUtil.isEmpty(request.getSortOrder()) ? "desc" : request.getSortOrder().toLowerCase();
+            try {
+                Comparator<Character> comparator = null;
+                switch (sf) {
+                    case "level" -> comparator = Comparator.comparingInt(Character::getLevel);
+                    case "job" -> comparator = Comparator.comparingInt(c -> c.getJob() != null ? c.getJob().getId() : 0);
+                    case "map" -> comparator = Comparator.comparingInt(c -> c.getMap() != null ? c.getMap().getId() : 0);
+                    case "ip" -> comparator = Comparator.comparing(c -> c.getClient() != null && c.getClient().getRemoteAddress() != null ? c.getClient().getRemoteAddress() : "");
+                    default -> comparator = null;
+                }
+                if (comparator != null) {
+                    log.info("Applying comparator sort: field={} order={}", sf, so);
+                    if ("desc".equals(so)) {
+                        util = util.sorted(comparator.reversed());
+                    } else {
+                        util = util.sorted(comparator);
+                    }
+                } else {
+                    log.warn("Unknown sort field requested: {}", sf);
+                }
+            } catch (Exception e) {
+                log.error("Error applying sort field={}, order={}. Returning unsorted results.", sf, so, e);
+            }
+        }
+
+        return util.page(chr -> ChrOnlineListRtnDTO.builder()
             .id(chr.getId())
             .name(chr.getName())
-            .map(chr.getMap().getId())
+            .map(chr.getMap() != null ? chr.getMap().getId() : 0)
+            .mapName(chr.getMap() != null ? chr.getMap().getMapName() : null)
             .job(chr.getJob().getId())
             .jobName(chr.getJob().getName())
             .level(chr.getLevel())
