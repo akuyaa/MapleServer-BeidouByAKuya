@@ -431,6 +431,7 @@
         filterForm.value.map,
         filterForm.value.ip,
         filterForm.value.accountId,
+        undefined, // account (not provided in filter form)
         filterForm.value.mapName,
         sortField.value || undefined,
         sortOrder.value || undefined

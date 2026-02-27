@@ -3,6 +3,10 @@
 !.idea/codeStyles/
 *.iml
 /target
+/scripts
+/scriprts-zh-cn
+/wz
+/ez-zh-CN
 .github
 !.github/ISSUE_TEMPLATE
 .vscode

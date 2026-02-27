@@ -202,6 +202,11 @@ public class CashShop {
 
                 loadedPackages.put(Integer.parseInt(cashPackage.getName()), cPackage);
             }
+            // 保存加载的 package 映射，并从数据库/配置初始化分类与已修改的商品
+            CashItemFactory.packages = loadedPackages;
+            // 确保分类信息和数据库覆盖的商品也被加载到内存中
+            loadCashCategories();
+            loadAllModifiedCashItems();
             } catch (Exception ex) {
                 log.error("Failed to load cash items from WZ files, continuing with empty cash item set", ex);
                 CashItemFactory.items = new HashMap<>();
