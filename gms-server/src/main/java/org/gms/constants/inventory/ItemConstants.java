@@ -156,7 +156,8 @@ public final class ItemConstants {
     }
 
     public static boolean isChaosScroll(int scrollId) {
-        return scrollId >= 2049100 && scrollId <= 2049103;
+        return (scrollId >= 2049100 && scrollId <= 2049103) || // 普通混沌卷轴
+                scrollId == 2049115; // 正向混沌卷轴50%
     }
 
     public static boolean isRateCoupon(int itemId) {

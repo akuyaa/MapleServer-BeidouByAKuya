@@ -1119,7 +1119,9 @@ public class ItemInformationProvider {
                         case ItemId.MAPLE_SYRUP:
                             scrollEquipWithChaos(nEquip, GameConfig.getServerInt("chaos_scroll_stat_range")); // 使用混沌卷轴增加随机属性
                             break;
-
+                        case 2049115: // 正向混沌卷轴50%
+                            applyPositiveChaosScrollDetailed(nEquip, 1, 5); // 使用精确控制版
+                            break;
                         default:
                             improveEquipStats(nEquip, stats); // 默认情况下提高装备属性
                             break;
@@ -1144,6 +1146,93 @@ public class ItemInformationProvider {
             }
         }
         return equip; // 返回处理后的装备
+    }
+
+    /**
+     * 应用正向混沌卷轴效果 - 精确控制版
+     * 分别记录每个属性的增强情况
+     */
+    private void applyPositiveChaosScrollDetailed(Equip equip, int minIncrease, int maxIncrease) {
+        // 生成1-5之间的随机增加量
+        int increase = Randomizer.rand(minIncrease, maxIncrease);
+
+        // 记录增强的属性
+        StringBuilder enhancedStats = new StringBuilder();
+
+        // 1. 主属性
+        if (equip.getStr() > 0) {
+            equip.setStr((short) (equip.getStr() + increase));
+            enhancedStats.append("STR+").append(increase).append(" ");
+        }
+        if (equip.getDex() > 0) {
+            equip.setDex((short) (equip.getDex() + increase));
+            enhancedStats.append("DEX+").append(increase).append(" ");
+        }
+        if (equip.getInt() > 0) {
+            equip.setInt((short) (equip.getInt() + increase));
+            enhancedStats.append("INT+").append(increase).append(" ");
+        }
+        if (equip.getLuk() > 0) {
+            equip.setLuk((short) (equip.getLuk() + increase));
+            enhancedStats.append("LUK+").append(increase).append(" ");
+        }
+
+        // 2. 攻击/防御属性
+        if (equip.getWatk() > 0) {
+            equip.setWatk((short) (equip.getWatk() + increase));
+            enhancedStats.append("WATK+").append(increase).append(" ");
+        }
+        if (equip.getMatk() > 0) {
+            equip.setMatk((short) (equip.getMatk() + increase));
+            enhancedStats.append("MATK+").append(increase).append(" ");
+        }
+        if (equip.getWdef() > 0) {
+            equip.setWdef((short) (equip.getWdef() + increase));
+            enhancedStats.append("WDEF+").append(increase).append(" ");
+        }
+        if (equip.getMdef() > 0) {
+            equip.setMdef((short) (equip.getMdef() + increase));
+            enhancedStats.append("MDEF+").append(increase).append(" ");
+        }
+
+        // 3. 辅助属性
+        if (equip.getAcc() > 0) {
+            equip.setAcc((short) (equip.getAcc() + increase));
+            enhancedStats.append("ACC+").append(increase).append(" ");
+        }
+        if (equip.getAvoid() > 0) {
+            equip.setAvoid((short) (equip.getAvoid() + increase));
+            enhancedStats.append("AVOID+").append(increase).append(" ");
+        }
+        if (equip.getSpeed() > 0) {
+            equip.setSpeed((short) (equip.getSpeed() + increase));
+            enhancedStats.append("SPEED+").append(increase).append(" ");
+        }
+        if (equip.getJump() > 0) {
+            equip.setJump((short) (equip.getJump() + increase));
+            enhancedStats.append("JUMP+").append(increase).append(" ");
+        }
+
+        // 4. HP/MP
+        if (equip.getHp() > 0) {
+            equip.setHp((short) (equip.getHp() + increase));
+            enhancedStats.append("HP+").append(increase).append(" ");
+        }
+        if (equip.getMp() > 0) {
+            equip.setMp((short) (equip.getMp() + increase));
+            enhancedStats.append("MP+").append(increase).append(" ");
+        }
+
+        // 如果没有增强任何属性，强制增强攻击力
+        if (enhancedStats.length() == 0) {
+            equip.setWatk((short) (equip.getWatk() + increase));
+            enhancedStats.append("WATK+").append(increase).append(" ");
+        }
+
+        // 调试日志
+        if (GameConfig.getServerBoolean("debug_mode")) {
+            System.out.println("正向混沌卷轴效果: " + enhancedStats.toString());
+        }
     }
 
     public static void improveEquipStats(Equip nEquip, Map<String, Integer> stats) {

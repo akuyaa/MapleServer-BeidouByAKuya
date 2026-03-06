@@ -39,6 +39,9 @@ var eventTime = 140;     // 140 minutes
 
 const maxLobbies = 1;
 const BOSS_ID_PINK_BEAN = 8820001; // 最终Boss品克缤ID
+const ITEM_ID_MAPLE_LEAF = 4000313; // 黄金枫叶
+const ITEM_ID_MEDAL = 1142742;      // 冒险岛奖牌
+const POSITIVE_CHAOS_SCROLL = 2049115;      // 正向混沌50%
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
@@ -296,8 +299,6 @@ function monsterKilled(mob, eim) {
         // ✅ 发放随机奖励（1-5给奖牌，6-100给100个黄金枫叶）
         try {
             var party = eim.getPlayers();
-            const ITEM_ID_MAPLE_LEAF = 4000313; // 黄金枫叶
-            const ITEM_ID_MEDAL = 1142742;      // 冒险岛奖牌
 
             for (var i = 0; i < party.size(); i++) {
                 var player = party.get(i);
@@ -306,7 +307,13 @@ function monsterKilled(mob, eim) {
 
                 // 控制台打印该玩家的随机数
                 print("[PinkBeanBattle] 玩家 [" + player.getName() + "] 获得随机数: " + randomNum);
-
+                //每人一张正向混沌卷轴50%
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    POSITIVE_CHAOS_SCROLL,
+                    1,
+                    false,
+                    true
+                );
                 if (randomNum >= 1 && randomNum <= 5) {
                     // 1-5：给予冒险岛奖牌（稀有奖励）
                     player.getClient().getAbstractPlayerInteraction().gainItem(
