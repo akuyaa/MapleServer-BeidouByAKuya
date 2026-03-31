@@ -171,19 +171,19 @@ function changedMap(eim, player, mapid) {
 function changedLeader(eim, leader) { }
 
 function playerDead(eim, player) {
-    var count = eim.getIntProperty("fallenPlayers");
-    count = count + 1;
-
-    eim.setIntProperty("fallenPlayers", count);
-
-    if (count == 5) {
-        eim.dropMessage(5, "[远征队] 太多队员阵亡，品克缤现在被视为不可战胜，远征结束。");
-        end(eim);
-    } else if (count == 4) {
-        eim.dropMessage(5, "[远征队] 品克缤变得比以往更强大，大家进入背水一战模式！");
-    } else if (count == 3) {
-        eim.dropMessage(5, "[远征队] 伤亡人数开始失控，请小心战斗。");
-    }
+    // var count = eim.getIntProperty("fallenPlayers");
+    // count = count + 1;
+    //
+    // eim.setIntProperty("fallenPlayers", count);
+    //
+    // if (count == 5) {
+    //     eim.dropMessage(5, "[远征队] 太多队员阵亡，品克缤现在被视为不可战胜，远征结束。");
+    //     end(eim);
+    // } else if (count == 4) {
+    //     eim.dropMessage(5, "[远征队] 品克缤变得比以往更强大，大家进入背水一战模式！");
+    // } else if (count == 3) {
+    //     eim.dropMessage(5, "[远征队] 伤亡人数开始失控，请小心战斗。");
+    // }
 }
 
 function playerRevive(eim, player) {

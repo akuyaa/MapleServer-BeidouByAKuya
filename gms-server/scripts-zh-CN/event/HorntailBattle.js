@@ -206,6 +206,13 @@ function monsterKilled(mob, eim) {
 
             for (var i = 0; i < party.size(); i++) {
                 var player = party.get(i);
+                //每人一张正向混沌卷轴50%
+                player.getClient().getAbstractPlayerInteraction().gainItem(
+                    POSITIVE_CHAOS_SCROLL,
+                    1,
+                    false,
+                    true
+                );
                 // 随机30-50个 (30 + 0~20)
                 var qty = 30 + Math.floor(Math.random() * 21);
 
@@ -220,39 +227,39 @@ function monsterKilled(mob, eim) {
                 player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 4, false, true);
                 player.dropMessage(5, "获得 4 个绿水灵邮票！");
                 // ✅ 1%概率抽取稀有装备（新增代码）
-                var randomNum = 1 + Math.floor(Math.random() * 100);
-                print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
+                // var randomNum = 1 + Math.floor(Math.random() * 100);
+                // print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
 
-                if (randomNum <= 1) {
-                    player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
-                    // 装备ID列表（只取每个数组的第一个元素）
-                    var equipList = [
-                        1042254, 1042255, 1042256, 1042257, 1042258,
-                        1062165, 1062166, 1062167, 1062168, 1062169,
-                        1132246, 1113075, 1022226, 1003209, 1132246,
-                        1113075, 1022226, 1003209, 1102481, 1102482,
-                        1102483, 1102484, 1102485, 1072743, 1072744,
-                        1072745, 1072746, 1072747
-                    ];
+                // if (randomNum <= 1) {
+                //     player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
+                //     // 装备ID列表（只取每个数组的第一个元素）
+                //     var equipList = [
+                //         1042254, 1042255, 1042256, 1042257, 1042258,
+                //         1062165, 1062166, 1062167, 1062168, 1062169,
+                //         1132246, 1113075, 1022226, 1003209, 1132246,
+                //         1113075, 1022226, 1003209, 1102481, 1102482,
+                //         1102483, 1102484, 1102485, 1072743, 1072744,
+                //         1072745, 1072746, 1072747
+                //     ];
 
-                    var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
-                    print("触发稀有掉落！选中装备ID: " + selectedEquip);
+                //     var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                //     print("触发稀有掉落！选中装备ID: " + selectedEquip);
 
-                    try {
-                        var party = eim.getPlayers();
-                        for (var j = 0; j < party.size(); j++) {
-                            var p = party.get(j);
-                            p.getClient().getAbstractPlayerInteraction().gainItem(
-                                selectedEquip, 1, false, true
-                            );
-                            p.dropMessage(5, "恭喜！你获得了稀有装备！");
-                            p.dropMessage(5, "获得装备ID: " + selectedEquip);
-                        }
-                        print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
-                    } catch (e) {
-                        print("发放稀有装备失败: " + e);
-                    }
-                }
+                //     try {
+                //         var party = eim.getPlayers();
+                //         for (var j = 0; j < party.size(); j++) {
+                //             var p = party.get(j);
+                //             p.getClient().getAbstractPlayerInteraction().gainItem(
+                //                 selectedEquip, 1, false, true
+                //             );
+                //             p.dropMessage(5, "恭喜！你获得了稀有装备！");
+                //             p.dropMessage(5, "获得装备ID: " + selectedEquip);
+                //         }
+                //         print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
+                //     } catch (e) {
+                //         print("发放稀有装备失败: " + e);
+                //     }
+                // }
             }
             print("[HorntailBattle] 已发放随机黄金枫叶奖励(30-50个)给 " + party.size() + " 名玩家");
         } catch (e) {
