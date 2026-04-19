@@ -25,7 +25,7 @@
 
 var isPq = true;
 var minPlayers = 6, maxPlayers = 30;
-var minLevel = 1, maxLevel = 255;
+var minLevel = 15, maxLevel = 200;
 var entryMap = 990000000;
 var exitMap = 990001100;
 var recruitMap = 101030104;
@@ -36,14 +36,14 @@ var maxMapId = 990001101;
 
 var waitTime = 3;       //  3 minutes
 var eventTime = 90;     // 90 minutes
-var bonusTime = 0.5;    // 30 seconds
+var bonusTime = 1.0;    // 60 seconds
 
 const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低15级，最高200级。
+    minLevel = 15 , maxLevel = 200;
 }
 
 
@@ -72,7 +72,7 @@ function setEventRequirements() {
         reqStr += minLevel;
     }
 
-    reqStr += "\r\n    All members of the same guild";
+    reqStr += "\r\n   所有人员必须在#r同一个家族#k";
 
     reqStr += "\r\n   时间限制: ";
     reqStr += eventTime + " 分钟";
@@ -253,7 +253,7 @@ function changedMap(eim, player, mapid) {
 
 function afterChangedMap(eim, player, mapid) {
     if (mapid == 990000100) {
-        var texttt = "So, here is the brief. You guys should be warned that, once out on the fortress outskirts, anyone that would not be equipping the #b#t1032033##k will die instantly due to the deteriorated state of the air around there. That being said, once your team moves out, make sure to #bhit the glowing rocks#k in that region and #bequip the dropped item#k before advancing stages. That will protect you thoroughly from the air sickness. Good luck!";
+        var texttt = "简单提醒你们：一旦进入遗迹区域，任何不装备#b#t1032033##k的人都会因周围空气恶化而立即死亡。\r\n因此，你们一定要在进入之前#b敲击这里的发光岩石#k并且#b装备掉落的耳环、不要取下#k。这将保护你免受死亡。\r\n祝你们好运！";
         player.getAbstractPlayerInteraction().npcTalk(9040000, texttt);
     }
 }

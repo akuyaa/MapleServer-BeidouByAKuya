@@ -119,7 +119,7 @@ function playerEntry(eim, player) {
 
     const PacketCreator = Java.type('org.gms.util.PacketCreator');
     player.sendPacket(PacketCreator.showEffect("event/space/start"));
-    player.startMapEffect("请在时限内解救嘎嘎。", 5120027);
+    player.startMapEffect("请在时限内解救佳佳。", 5120027);
 }
 
 function scheduledTimeout(eim) {

@@ -26,7 +26,7 @@
 var isPq = true;
 var onlyMarriedPlayers = true;
 var minPlayers = 6, maxPlayers = 6;
-var minLevel = 40, maxLevel = 255;
+var minLevel = 40, maxLevel = 200;
 var entryMap = 670010200;
 var exitMap = 670011000;
 var recruitMap = 670010100;
@@ -41,8 +41,8 @@ const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低40级，最高200级。
+    minLevel = 40 , maxLevel = 200;
 }
 
 function init() {
@@ -56,26 +56,26 @@ function getMaxLobbies() {
 function setEventRequirements() {
     var reqStr = "";
 
-    reqStr += "\r\n   组队人数: ";
+    reqStr += "\r\n  ·组队人数: ";
     if (maxPlayers - minPlayers >= 1) {
         reqStr += minPlayers + " ~ " + maxPlayers;
     } else {
         reqStr += minPlayers;
     }
 
-    reqStr += "\r\n   等级要求: ";
+    reqStr += "\r\n  ·等级要求: ";
     if (maxLevel - minLevel >= 1) {
         reqStr += minLevel + " ~ " + maxLevel;
     } else {
         reqStr += minLevel;
     }
 
-    reqStr += "\r\n    至少一男一女";
+    reqStr += "\r\n  ·至少一男一女#b（单人也能做）#k";
     if (onlyMarriedPlayers) {
-        reqStr += "\r\n    都结婚了";
+        reqStr += "\r\n  ·都已结婚（因BUG无法结婚，不结婚也能做）";
     }
 
-    reqStr += "\r\n   时间限制: ";
+    reqStr += "\r\n  ·时间限制: ";
     reqStr += eventTime + " 分钟";
 
     em.setProperty("party", reqStr);
@@ -113,7 +113,7 @@ function getEligibleParty(party) {      //selects, from the given party, the tea
                 if (ch.isLeader()) {
                     hasLeader = true;
                 }
-                if (!ch.getPlayer().isMarried()) {
+                 if (!ch.getPlayer().isMarried()) {  
                     hasNotMarried = true;
                 }
                 eligible.push(ch);
@@ -123,12 +123,12 @@ function getEligibleParty(party) {      //selects, from the given party, the tea
         }
     }
 
-    if (!(hasLeader && eligible.length >= minPlayers && eligible.length <= maxPlayers && mask == 3)) {
+    if (!(hasLeader && eligible.length >= minPlayers && eligible.length <= maxPlayers)) { // 删去  && mask == 3 条件，即不要求结婚，因为有BUG无法完成结婚
         eligible = [];
     }
-    if (onlyMarriedPlayers && hasNotMarried) {
-        eligible = [];
-    }
+   // if (onlyMarriedPlayers && hasNotMarried) { //不要求是否结婚，方便单人玩家
+   //     eligible = [];
+  //  }
     return Java.to(eligible, Java.type('org.gms.net.server.world.PartyCharacter[]'));
 }
 

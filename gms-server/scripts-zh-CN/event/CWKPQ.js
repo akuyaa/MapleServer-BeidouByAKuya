@@ -25,7 +25,7 @@
 
 var isPq = true;
 var minPlayers = 6, maxPlayers = 30;
-var minLevel = 90, maxLevel = 255;
+var minLevel = 90, maxLevel = 200;
 var entryMap = 610030100;
 var exitMap = 610030020;
 var recruitMap = 610030020;
@@ -34,14 +34,14 @@ var clearMap = 610030020;
 var minMapId = 610030100;
 var maxMapId = 610030800;
 
-var eventTime = 2;     // 2 minutes for first stg
+var eventTime = 3;     // 3 minutes for first stg
 
 const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低90级，最高200级。
+    minLevel = 90 , maxLevel = 200;
 }
 
 function init() {
@@ -165,7 +165,11 @@ function setup(channel) {
     eim.setProperty("glpq3_p", "0");
     eim.setProperty("glpq4", "0");
     eim.setProperty("glpq5", "0");
-    eim.setProperty("glpq5_room", "0");
+    //eim.setProperty("glpq5_room", "0");
+    eim.setProperty("glpq5_room1", "0");
+    eim.setProperty("glpq5_room2", "0");
+    eim.setProperty("glpq5_room3", "0");
+    eim.setProperty("glpq5_room4", "0");
     eim.setProperty("glpq6", "0");
 
     eim.setProperty("glpq_f0", "0");
@@ -266,7 +270,7 @@ function changedMap(eim, player, mapid) {
                 break;
             case 610030300:
                 if (eim.getIntProperty("current_instance") == 1) {
-                    eim.restartEventTimer(600000); //10 mins
+                    eim.restartEventTimer(900000); //15 mins
                     eim.setIntProperty("current_instance", 2);
                 }
                 break;
@@ -278,7 +282,7 @@ function changedMap(eim, player, mapid) {
                 break;
             case 610030500:
                 if (eim.getIntProperty("current_instance") == 3) {
-                    eim.restartEventTimer(1200000); //20 mins
+                    eim.restartEventTimer(1800000); //30 mins
                     eim.setIntProperty("current_instance", 4);
                 }
                 break;

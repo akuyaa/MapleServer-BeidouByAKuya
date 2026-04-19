@@ -149,12 +149,12 @@ function setup(level, lobbyid) {
             let map = eim.getMapInstance(entryMap);
             map.killAllMonsters();      // 杀死原本地图上的所有怪物
             if(Difficulty) {
-                level = level <= 0 ? 1 : level; //最小难度为1
+                    level = level <= 0 ? 1 : level; //最小难度为1
                 let stats = mob.getStats();
                 let HpMax = mob.getMaxHp() * level;
-                HpMax = HpMax > 2147483647 ? 2147483647 : HpMax;
+                    HpMax = HpMax > 2147483647 ? 2147483647 : HpMax;
                 let MpMax = mob.getMaxMp() * level;
-                MpMax = MpMax > 2147483647 ? 2147483647 : MpMax;
+                    MpMax = MpMax > 2147483647 ? 2147483647 : MpMax;
                 mob.setStartingHp(HpMax);
                 mob.setMp(MpMax);
                 //以下属性似乎没有作用，先留着

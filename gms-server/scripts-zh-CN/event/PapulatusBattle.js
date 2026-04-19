@@ -39,6 +39,7 @@ var eventTime = 45;     // 45 minutes
 
 const maxLobbies = 1;
 const BOSS_ID_PAPULATUS = 8500002;
+const POSITIVE_CHAOS_SCROLL = 2049115;      // 正向混沌50%
 
 // ✅ 远征队配置（参考扎昆）
 const GameConfig = Java.type('org.gms.config.GameConfig');
@@ -76,6 +77,30 @@ function setEventRequirements() {
     reqStr += eventTime + " 分钟";
 
     em.setProperty("party", reqStr);
+}
+
+function hasDailyBossLog(player, bossType) {
+    try {
+        const DatabaseConnection = Java.type('org.gms.util.DatabaseConnection');
+        var con = DatabaseConnection.getConnection();
+        var ps = con.prepareStatement(
+            "SELECT COUNT(*) AS count FROM bosslog_daily WHERE characterid = ? AND bosstype = ? AND DATE(attempttime) = CURDATE()"
+        );
+        ps.setInt(1, player.getId());
+        ps.setString(2, bossType);
+        var rs = ps.executeQuery();
+        var exists = false;
+        if (rs.next()) {
+            exists = rs.getInt("count") > 0;
+        }
+        rs.close();
+        ps.close();
+        con.close();
+        return exists;
+    } catch (e) {
+        print("[PapulatusBattle] 检查bosslog失败: " + e);
+        return false;
+    }
 }
 
 function setEventExclusives(eim) {
@@ -239,60 +264,78 @@ function monsterKilled(mob, eim) {
         try {
             var party = eim.getPlayers();
             const ITEM_ID = 4000313; // 黄金枫叶
+            var rewardedCount = 0;
 
             for (var i = 0; i < party.size(); i++) {
                 var player = party.get(i);
+                if (hasDailyBossLog(player, 'PAPULATUS')) {
+                    player.dropMessage(5, "[帕普拉图斯] 你今天已使用该BOSS次数，无法领取奖励。即使当前副本通关也不会额外发放奖励。");
+                    continue;
+                }
                 var qty = 2 + Math.floor(Math.random() * 7); // 随机2-8个
 
                 player.getClient().getAbstractPlayerInteraction().gainItem(
                     ITEM_ID, qty, false, true
                 );
+                rewardedCount++;
                 player.dropMessage(5, "[帕普拉图斯] 获得 " + qty + " 个黄金枫叶！");
                 player.getClient().getAbstractPlayerInteraction().gainItem(4002003, 1, false, true);
                 player.dropMessage(5, "获得 1 个绿水灵邮票！");
-                // ✅ 1%概率抽取稀有装备（新增代码）
-                // var randomNum = 1 + Math.floor(Math.random() * 100);
-                // print("[roll点拿装备] "+player.getName()+"本次随机数: " + randomNum);
-
-                // if (randomNum <= 1) {
-                //     player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
-                //     // 装备ID列表（只取每个数组的第一个元素）
-                //     var equipList = [
-                //         1042254, 1042255, 1042256, 1042257, 1042258,
-                //         1062165, 1062166, 1062167, 1062168, 1062169,
-                //         1132246, 1113075, 1022226, 1003209, 1132246,
-                //         1113075, 1022226, 1003209, 1102481, 1102482,
-                //         1102483, 1102484, 1102485, 1072743, 1072744,
-                //         1072745, 1072746, 1072747
-                //     ];
-
-                //     var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
-                //     print("触发稀有掉落！选中装备ID: " + selectedEquip);
-
-                //     try {
-                //         var party = eim.getPlayers();
-                //         for (var i = 0; i < party.size(); i++) {
-                //             var player = party.get(i);
-                //             player.getClient().getAbstractPlayerInteraction().gainItem(
-                //                 selectedEquip, 1, false, true
-                //             );
-                //             player.dropMessage(5, "恭喜！你获得了稀有装备！");
-                //             player.dropMessage(5, "获得装备ID: " + selectedEquip);
-                //         }
-                //         print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
-                //     } catch (e) {
-                //         print("发放稀有装备失败: " + e);
-                //     }
-                // }
+                // ✅ 6%概率抽取稀有装备（新增代码）
+                var randomNum = 1 + Math.floor(Math.random() * 100);
+                print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
+                player.dropMessage("[roll点拿装备] 本次随机数: " + randomNum);
+                if (randomNum <= 6) {
+                    player.dropMessage("恭喜你为全队roll出了幸运数字" + randomNum + " ,每人分配一件随机装备")
+                    // 装备ID列表（只取每个数组的第一个元素）
+                    var equipList = [
+                        1042254, 1042255, 1042256, 1042257, 1042258,
+                        1062165, 1062166, 1062167, 1062168, 1062169,
+                        1132246, 1113075, 1022226, 1132246,
+                        1113075, 1022226, 1102481, 1102482,
+                        1102483, 1102484, 1102485, 1072743, 1072744,
+                        1072745, 1072746, 1072747,                         //暴君 系列
+                        1302275, 1312153, 1322203, 1332225, 1372177, 1382208,
+                        1402196, 1412135, 1422140, 1432167, 1442223, 1452205,
+                        1462193, 1472214, 1482168, 1492179                     //FFN 武器
+                    ];
+                    try {
+                        var party = eim.getPlayers();
+                        var eligiblePlayers = [];
+                        for (var j = 0; j < party.size(); j++) {
+                            var p = party.get(j);
+                            if (!hasDailyBossLog(p, 'PAPULATUS')) {
+                                eligiblePlayers.push(p);
+                            }
+                        }
+                        if (eligiblePlayers.length > 0) {
+                            for (var k = 0; k < eligiblePlayers.length; k++) {
+                                var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                                print("触发稀有掉落！选中装备ID: " + selectedEquip);
+                                var eligiblePlayer = eligiblePlayers[k];
+                                eligiblePlayer.getClient().getAbstractPlayerInteraction().gainItem(
+                                    selectedEquip, 1, false, true
+                                );
+                                eligiblePlayer.dropMessage(5, "恭喜！你获得了稀有装备！");
+                                eligiblePlayer.dropMessage(5, "获得装备ID: " + selectedEquip);
+                            }
+                            print("已将稀有装备 " + selectedEquip + " 发放给 " + eligiblePlayers.length + " 名玩家");
+                        } else {
+                            print("稀有装备未发放：当前没有可领取奖励的玩家。");
+                        }
+                    } catch (e) {
+                        print("发放稀有装备失败: " + e);
+                    }
+                }
             }
-            print("[PapulatusBattle] 已发放奖励给 " + party.size() + " 名玩家");
+            print("[PapulatusBattle] 已发放奖励给 " + rewardedCount + " 名玩家");
         } catch (e) {
             print("[PapulatusBattle] 发放奖励失败: " + e);
         }
 
 
 
-        // ✅ 记录bosslog_daily（关键修改：从playerUnregistered移到这里）
+        // ✅ 记录bosslog_daily（只有未超过每日次数的玩家会记录）
         try {
             const DatabaseConnection = Java.type('org.gms.util.DatabaseConnection');
             var con = DatabaseConnection.getConnection();
@@ -301,13 +344,9 @@ function monsterKilled(mob, eim) {
 
             for (var i = 0; i < party.size(); i++) {
                 var player = party.get(i);
-                //每人一张正向混沌卷轴50%
-                player.getClient().getAbstractPlayerInteraction().gainItem(
-                    POSITIVE_CHAOS_SCROLL,
-                    1,
-                    false,
-                    true
-                );
+                if (hasDailyBossLog(player, 'PAPULATUS')) {
+                    continue;
+                }
                 try {
                     var ps = con.prepareStatement("INSERT INTO bosslog_daily (characterid, bosstype) VALUES (?, 'PAPULATUS')");
                     ps.setInt(1, player.getId());
@@ -316,7 +355,6 @@ function monsterKilled(mob, eim) {
                     count++;
                     print("[PapulatusBattle] 已记录通关 - 角色: " + player.getName() + " (ID:" + player.getId() + ")");
                 } catch (sqlEx) {
-                    // 可能是重复记录（主键冲突），忽略
                     print("[PapulatusBattle] 记录玩家 " + player.getName() + " 失败(可能已记录): " + sqlEx);
                 }
             }
@@ -336,7 +374,7 @@ function monsterKilled(mob, eim) {
         eim.clearPQ();
         mob.getMap().broadcastPapulatusVictory();
     }
-    
+
 }
 
 

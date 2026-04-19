@@ -19,7 +19,7 @@ const maxLobbies = 1;
 const BOSS_PHASE_1 = 9420520;
 const BOSS_PHASE_2 = 9420521;
 const BOSS_PHASE_3 = 9420522;
-
+const POSITIVE_CHAOS_SCROLL = 2049115;      // 正向混沌50%
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;
 if (GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {
@@ -43,6 +43,30 @@ function setEventExclusives(eim) { eim.setExclusiveItems([]); }
 function setEventRewards(eim) {
     eim.setEventRewards(1, [], []);
     eim.setEventClearStageExp([]);
+}
+
+function hasDailyBossLog(player, bossType) {
+    try {
+        const DatabaseConnection = Java.type('org.gms.util.DatabaseConnection');
+        var con = DatabaseConnection.getConnection();
+        var ps = con.prepareStatement(
+            "SELECT COUNT(*) AS count FROM bosslog_daily WHERE characterid = ? AND bosstype = ? AND DATE(attempttime) = CURDATE()"
+        );
+        ps.setInt(1, player.getId());
+        ps.setString(2, bossType);
+        var rs = ps.executeQuery();
+        var exists = false;
+        if (rs.next()) {
+            exists = rs.getInt("count") > 0;
+        }
+        rs.close();
+        ps.close();
+        con.close();
+        return exists;
+    } catch (e) {
+        print("[KrexelBattle] 检查bosslog失败: " + e);
+        return false;
+    }
 }
 
 function getEligibleParty(party) {
@@ -141,38 +165,7 @@ function scheduledTimeout(eim) {
 // 玩家注销时（离开或掉线）补发奖励（如果击杀时没领到）
 function playerUnregistered(eim, player) {
     if (eim.isEventCleared()) {
-        // 检查该玩家是否已处理过
-        if (eim.getProperty("rewarded_" + player.getId()) == "1") {
-            return; // 已发奖，跳过
-        }
-
-        // 补发奖励
-        try {
-            const ITEM_ID = 4000313;
-            var qty = 2 + Math.floor(Math.random() * 7);
-            player.getClient().getAbstractPlayerInteraction().gainItem(ITEM_ID, qty, false, true);
-            player.dropMessage(5, "[克雷塞尔] 获得 " + qty + " 个黄金枫叶！");
-            eim.setProperty("rewarded_" + player.getId(), "1");
-            print("[KrexelBattle] 补发奖励给 " + player.getName());
-        } catch (e) {
-            print("[KrexelBattle] 补发奖励失败: " + String(e));
-        }
-
-        // 记录BossLog
-        try {
-            const DatabaseConnection = Java.type('org.gms.util.DatabaseConnection');
-            var con = DatabaseConnection.getConnection();
-            var ps = con.prepareStatement(
-                "INSERT IGNORE INTO bosslog_daily (characterid, bosstype, attempttime) VALUES (?, 'KREXEL', NOW())"
-            );
-            ps.setInt(1, player.getId());
-            ps.executeUpdate();
-            ps.close();
-            con.close();
-            print("[KrexelBattle] 已记录通关 - " + player.getName());
-        } catch (e) {
-            print("[KrexelBattle] 记录BossLog失败: " + String(e));
-        }
+        giveRewardAndLog(eim, player);
     }
 }
 
@@ -252,6 +245,11 @@ function giveRewardAndLog(eim, player) {
     // 检查是否已发放
     if (eim.getProperty("rewarded_" + player.getId()) == "1") return;
 
+    if (hasDailyBossLog(player, 'KREXEL')) {
+        player.dropMessage(5, "[克雷塞尔] 你今天已使用该BOSS次数，无法领取奖励。即使当前副本通关也不会额外发放奖励。");
+        return;
+    }
+
     try {
         // 发奖
         const ITEM_ID = 4001126;
@@ -264,74 +262,42 @@ function giveRewardAndLog(eim, player) {
     } catch (e) {
         print("[KrexelBattle] 给 " + player.getName() + " 发奖失败: " + String(e));
     }
-    // ✅ 3%概率抽取稀有装备（新增代码）
+    //每人一张正向混沌卷轴50%
+    player.getClient().getAbstractPlayerInteraction().gainItem(
+        POSITIVE_CHAOS_SCROLL,
+        1,
+        false,
+        true
+    );
+    // ✅ 6%概率抽取稀有装备（新增代码）
     var randomNum = 1 + Math.floor(Math.random() * 100);
-    print("[roll点拿装备] 本次随机数: " + randomNum);
+    print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
+    player.dropMessage("[roll点拿装备] 本次随机数: " + randomNum);
 
-    if (randomNum <= 3) {
+    if (randomNum <= 6) {
         // 装备ID列表（只取每个数组的第一个元素）
         var equipList = [
             1042254, 1042255, 1042256, 1042257, 1042258,
             1062165, 1062166, 1062167, 1062168, 1062169,
-            1132246, 1113075, 1022226, 1003209, 1132246,
-            1113075, 1022226, 1003209, 1102481, 1102482,
+            1132246, 1113075, 1022226, 1132246,
+            1113075, 1022226, 1102481, 1102482,
             1102483, 1102484, 1102485, 1072743, 1072744,
-            1072745, 1072746, 1072747
+            1072745, 1072746, 1072747,                         //暴君 系列
+            1302275, 1312153, 1322203, 1332225, 1372177, 1382208,
+            1402196, 1412135, 1422140, 1432167, 1442223, 1452205,
+            1462193, 1472214, 1482168, 1492179                     //FFN 武器
         ];
-
-        var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
-        print("触发稀有掉落！选中装备ID: " + selectedEquip);
-
         try {
             var party = eim.getPlayers();
             for (var i = 0; i < party.size(); i++) {
+                var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
+                print("触发稀有掉落！选中装备ID: " + selectedEquip);
                 var player = party.get(i);
-                //每人一张正向混沌卷轴50%
-                player.getClient().getAbstractPlayerInteraction().gainItem(
-                    POSITIVE_CHAOS_SCROLL,
-                    1,
-                    false,
-                    true
-                );
                 player.getClient().getAbstractPlayerInteraction().gainItem(
                     selectedEquip, 1, false, true
                 );
                 player.dropMessage(5, "恭喜！你获得了稀有装备！");
                 player.dropMessage(5, "获得装备ID: " + selectedEquip);
-                // ✅ 1%概率抽取稀有装备（新增代码）
-                // var randomNum = 1 + Math.floor(Math.random() * 100);
-                // print("[roll点拿装备] " + player.getName() + "本次随机数: " + randomNum);
-
-                // if (randomNum <= 1) {
-                //     player.dropMessage("恭喜你为全队roll出了幸运数字1 每人分配一件随机装备")
-                //     // 装备ID列表（只取每个数组的第一个元素）
-                //     var equipList = [
-                //         1042254, 1042255, 1042256, 1042257, 1042258,
-                //         1062165, 1062166, 1062167, 1062168, 1062169,
-                //         1132246, 1113075, 1022226, 1003209, 1132246,
-                //         1113075, 1022226, 1003209, 1102481, 1102482,
-                //         1102483, 1102484, 1102485, 1072743, 1072744,
-                //         1072745, 1072746, 1072747
-                //     ];
-
-                //     var selectedEquip = equipList[Math.floor(Math.random() * equipList.length)];
-                //     print("触发稀有掉落！选中装备ID: " + selectedEquip);
-
-                //     try {
-                //         var party = eim.getPlayers();
-                //         for (var i = 0; i < party.size(); i++) {
-                //             var player = party.get(i);
-                //             player.getClient().getAbstractPlayerInteraction().gainItem(
-                //                 selectedEquip, 1, false, true
-                //             );
-                //             player.dropMessage(5, "恭喜！你获得了稀有装备！");
-                //             player.dropMessage(5, "获得装备ID: " + selectedEquip);
-                //         }
-                //         print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
-                //     } catch (e) {
-                //         print("发放稀有装备失败: " + e);
-                //     }
-                // }
             }
             print("已将稀有装备 " + selectedEquip + " 发放给 " + party.size() + " 名玩家");
         } catch (e) {
@@ -426,7 +392,7 @@ function monsterKilled(mob, eim) {
             }
         }
     }
-    if(mob.getId() == BOSS_PHASE_3){
+    if (mob.getId() == BOSS_PHASE_3) {
         mob.getMap().broadcastKrexelVictory();
     }
 

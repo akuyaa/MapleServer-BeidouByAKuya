@@ -34,14 +34,14 @@ var clearMap = 920011300;
 var minMapId = 920010000;
 var maxMapId = 920011300;
 
-var eventTime = 45;     // 45 minutes
+var eventTime = 60;     // 60 minutes
 
 const maxLobbies = 1;
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
-if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最低1级，最高999级。
-    minLevel = 1 , maxLevel = 999;
+if(GameConfig.getServerBoolean("use_enable_party_level_limit_lift")) {  //如果解除远征队等级限制，则最高200级。
+    minLevel = 51 , maxLevel = 200;
 }
 
 function init() {
