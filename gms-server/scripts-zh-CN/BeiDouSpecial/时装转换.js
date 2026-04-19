@@ -1,5 +1,5 @@
 /* =========================================================
- * 时装同部位属性转移（无反射、无锁、仅同部位）
+ * 时装同部位属性转移（支持已升星时装，保留星级）
  * ========================================================= */
 
 var status = -1;
@@ -12,19 +12,34 @@ function isFashion(item) {
     return ii.isCash(item.getItemId());
 }
 
-/* 判断时装是否已被升星（owner 包含 ★ 或其他标记） */
-function isStarred(item) {
-    if (!item) return false;
-    try {
-        var owner = item.getOwner ? item.getOwner() : "";
-        if (!owner) return false;
-        if (owner.indexOf('★') !== -1 || owner.indexOf('\u2605') !== -1 || owner.indexOf('*') !== -1) return true;
-        if (owner.indexOf('星') !== -1) return true;
-        if (/★\d+/.test(owner) || /\*\d+/.test(owner)) return true;
-        return false;
-    } catch (e) {
-        return false;
+/* 从owner字段解析星级 */
+function parseStarFromOwner(owner) {
+    if (!owner) return 0;
+    // 尝试匹配末尾的 ★n 或者 包含 ★n（如 "玩家 | ★3"）
+    var m = owner.match(/★(\d+)$/);
+    if (m && m.length >= 2) return parseInt(m[1], 10);
+    m = owner.match(/★(\d+)/);
+    if (m && m.length >= 2) return parseInt(m[1], 10);
+    return 0;
+}
+
+/* 构建带星级的owner字段 */
+function buildOwnerWithStar(originalOwner, star) {
+    // 保留原 owner（如果为空则仅写 ★n），如果原 owner 已含 ★x，则替换为新值
+    var base = originalOwner || "";
+    if (base.match(/★(\d+)/)) {
+        return base.replace(/★(\d+)/, "★" + star);
     }
+    base = base.trim();
+    if (base.length === 0) return "★" + star;
+    return base + " | ★" + star;
+}
+
+/* 提取owner中的非星级部分（基础名称） */
+function getBaseOwner(owner) {
+    if (!owner) return "";
+    // 移除星级标记部分
+    return owner.replace(/[|｜]?\s*★\d+/g, "").trim();
 }
 
 function getBodyPart(item) {
@@ -58,45 +73,51 @@ function action(mode, type, selection) {
 
     switch (status) {
         case 0:
-            cm.sendSimple("请选择操作\r\n#L0#我要同部位转移时装属性#l");
+            cm.sendSimple("请选择操作\r\n#L0#我要同部位转移时装属性（支持已升星时装）#l");
             break;
 
-        case 1: // 源时装列表
+        case 1: // 源时装列表（现在包含所有升星时装）
             if (selection !== 0) { cm.dispose(); return; }
-            var txt = "#e选择要提取属性的时装#n\r\n", found = false;
+            var txt = "#e选择要提取属性的时装#n\r\n#b（已升星时装也可作为源）#k\r\n", found = false;
             for (var i = 0; i <= 96; i++) {
                 var it = cm.getInventory(1).getItem(i);
-                // 仅列出未升星的时装作为源
-                if (isFashion(it) && !isStarred(it)) {
+                // 列出所有时装（包括已升星的）
+                if (isFashion(it)) {
                     found = true;
-                    txt += `#L${i}##v${it.getItemId()}##z${it.getItemId()}##k\r\n`;
+                    var owner = it.getOwner ? it.getOwner() : "";
+                    var star = parseStarFromOwner(owner);
+                    var starDisplay = star > 0 ? " #r(★" + star + ")#k" : "";
+                    txt += `#L${i}##v${it.getItemId()}##z${it.getItemId()}#${starDisplay}#k\r\n`;
                 }
             }
             if (!found) { cm.sendOk("装备栏里没有时装！"); cm.dispose(); return; }
             cm.sendSimple(txt);
             break;
 
-        case 2: // 同部位目标列表（id 区间版）
+        case 2: // 同部位目标列表（支持已升星时装）
             sourceSlot = selection;
             const srcItem = cm.getInventory(1).getItem(sourceSlot);
             const srcPart = getBodyPart(srcItem);
 
-            let txt2 = "#e选择要获得属性的时装#n\r\n", found2 = false;
+            let txt2 = "#e选择要获得属性的时装#n\r\n#b（星级将随属性一同转移）#k\r\n", found2 = false;
             for (let i = 0; i <= 96; i++) {
                 if (i === sourceSlot) continue;
                 const it = cm.getInventory(1).getItem(i);
                 if (!it || !isFashion(it)) continue;
-                // 目标也不能为已升星的时装
-                if (getBodyPart(it) === srcPart && !isStarred(it)) {
+                // 同部位即可，不再限制是否已升星
+                if (getBodyPart(it) === srcPart) {
                     found2 = true;
-                    txt2 += `#L${i}##v${it.getItemId()}##z${it.getItemId()}##k\r\n`;
+                    var owner = it.getOwner ? it.getOwner() : "";
+                    var star = parseStarFromOwner(owner);
+                    var starDisplay = star > 0 ? " #r(★" + star + ")#k" : "";
+                    txt2 += `#L${i}##v${it.getItemId()}##z${it.getItemId()}#${starDisplay}#k\r\n`;
                 }
             }
             if (!found2) { cm.sendOk("没有同部位的时装可转化！"); cm.dispose(); return; }
             cm.sendSimple(txt2);
             break;
 
-        case 3: // 属性复制
+        case 3: // 属性复制（包含星级转移）
             const targetSlot = selection;
             const inv = cm.getInventory(1);
             const sourceItem = inv.getItem(sourceSlot);
@@ -108,12 +129,13 @@ function action(mode, type, selection) {
                 return;
             }
 
-            // 禁止对已升星的时装进行转移
-            if (isStarred(sourceItem) || isStarred(targetItem)) {
-                cm.sendOk("已升星的时装不能进行属性转化。");
-                cm.dispose();
-                return;
-            }
+            // 获取源装备的星级
+            var srcOwner = sourceItem.getOwner ? sourceItem.getOwner() : "";
+            var srcStar = parseStarFromOwner(srcOwner);
+            
+            // 获取目标装备的基础owner（去除星级部分）
+            var targetOwner = targetItem.getOwner ? targetItem.getOwner() : "";
+            var targetBaseOwner = getBaseOwner(targetOwner);
 
             /* 复制属性 */
             targetItem.setStr(sourceItem.getStr());
@@ -123,12 +145,21 @@ function action(mode, type, selection) {
             targetItem.setWatk(sourceItem.getWatk());
             targetItem.setMatk(sourceItem.getMatk());
 
+            // 转移星级到目标装备（保留目标的基础owner名称，加上源的星级）
+            var newTargetOwner = buildOwnerWithStar(targetBaseOwner, srcStar);
+            targetItem.setOwner(newTargetOwner);
+
+            // 清空源装备属性，但保留其星级标记（可选：也可以清空星级）
             sourceItem.setStr(0);
             sourceItem.setDex(0);
             sourceItem.setInt(0);
             sourceItem.setLuk(0);
             sourceItem.setWatk(0);
             sourceItem.setMatk(0);
+            
+            // 源装备保留原星级或设为0星，这里选择保留原星级（玩家可能还想继续用它）
+            // 如果想清空源装备的星级，注释掉下面这行并取消注释 setOwner("")
+            // sourceItem.setOwner(getBaseOwner(srcOwner)); // 清空星级版本
 
             /* 永久化 */
             sourceItem.setExpiration(-1);
@@ -138,9 +169,12 @@ function action(mode, type, selection) {
             cm.getPlayer().forceUpdateItem(sourceItem);
             cm.getPlayer().forceUpdateItem(targetItem);
 
+            var newStarDisplay = srcStar > 0 ? " #r★" + srcStar + "#k" : "";
+
             cm.sendOk("转移完成！\r\n" +
-                "#v" + targetItem.getItemId() + "# 已获得属性并变为永久，\r\n" +
-                "#v" + sourceItem.getItemId() + "# 已清空并变为永久！");
+                "#v" + targetItem.getItemId() + "# 已获得属性并变为永久" + newStarDisplay + "\r\n" +
+                "#v" + sourceItem.getItemId() + "# 已清空属性并变为永久！\r\n\r\n" +
+                "#b提示：#k星级已随属性一同转移到目标装备。");
             cm.dispose();
             break;
 

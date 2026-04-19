@@ -33,7 +33,7 @@ function levelChooseType1() {
 
 // 选择了删除方式2
 function levelChooseType2() {
-    text = "选择要删除的道具\r\n\r\n";
+    text = "选择要删除的道具#r（点击后立即删除，谨慎操作）#k\r\n\r\n";
     let hasVal = false;
     for (let i = 0; i < 96; i++) {
         let item = cm.getInventory(sel).getItem(i);
@@ -56,11 +56,13 @@ function levelDoClear() {
     cm.removeAllByInventory(sel);
     // 回到levelStart
     cm.sendOkLevel("Start", "清除完毕！");
+            cm.dispose();
 }
 
 // 执行删除操作
 function levelDoRemove(choose) {
     cm.removeAllByInventorySlot(sel, choose);
     // 回到选择单个道具
-    cm.sendNextLevel("ChooseType2", "清除完毕！");
+    cm.sendOkLevel("ChooseType2", "清除完毕！");
+            cm.dispose();
 }

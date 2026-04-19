@@ -1,3 +1,7 @@
+﻿
+
+
+
 /* =========================================================
  * 时装升星脚本
  * 说明：
@@ -13,14 +17,43 @@
 
 var status = -1;
 var selectedSlot = -1;
+var selectedMode = 0; // 0: 普通升星, 1: 必成升星
 var SUCCESS_COST = 5000; // 每次升星消耗点券
 var MAX_STAR = 5;
 var successRate = 0.5; // 成功率（可修改）
+var GUARANTEE_COST = 100000; // 必成升星消耗点券
+
+
 
 function isFashion(item) {
     if (!item) return false;
+    var id = item.getItemId();
     var ii = Java.type("org.gms.server.ItemInformationProvider").getInstance();
-    return ii.isCash(item.getItemId());
+
+    // 1. 首先必须是点券物品
+    if (!ii.isCash(id)) return false;
+
+    // 2. 限制 ID 范围在装备类 (1xxxxxx)
+    var category = Math.floor(id / 1000000);
+    if (category !== 1) return false;
+
+    // 3. 细分过滤：排除掉戒指(111)、项链/脸饰/眼饰等(101, 102, 103, 112)
+    // 这里的逻辑是：只保留 武器、帽子、衣服、裤子、套装、手套、鞋子、披风
+    var type = Math.floor(id / 10000);
+
+    // 常见防具/武器类型代码：
+    // 100: 帽子, 104: 上衣, 105: 套装, 106: 裤子, 107: 鞋子, 108: 手套, 110: 披风
+    // 13x, 14x, 170: 武器/点券武器
+    var allowedTypes = [
+        100, 104, 105, 106, 107, 108, 110, // 防具
+        130, 131, 132, 133, 137, 138, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 170 // 武器类
+    ];
+
+    for (var i = 0; i < allowedTypes.length; i++) {
+        if (type === allowedTypes[i]) return true;
+    }
+
+    return false; // 其余（如戒指、吊坠、耳环、脸饰、眼饰、徽章等）全部排除
 }
 
 function getBodyPart(item) {
@@ -75,11 +108,13 @@ function action(mode, type, selection) {
 
     switch (status) {
         case 0:
-            cm.sendSimple("#e时装升星#n\r\n请选择：\r\n#L0#我要为时装升星（消耗 5000 点券/次）#l");
+            selectedMode = 0;
+            cm.sendSimple("#e时装升星#n\r\n请选择：\r\n#L0#我要为时装升星（消耗 5000 点券/次）#l\r\n#L1#我要花费 " + GUARANTEE_COST + " 点券直接必成#l");
             break;
 
         case 1:
-            if (selection !== 0) { cm.dispose(); return; }
+            if (selection !== 0 && selection !== 1) { cm.dispose(); return; }
+            selectedMode = selection;
             var txt = "#e选择要升星的时装#n\r\n", found = false;
             for (var i = 0; i <= 96; i++) {
                 var it = cm.getInventory(1).getItem(i);
@@ -104,10 +139,15 @@ function action(mode, type, selection) {
             var curStar = parseStarFromOwner(owner);
             if (curStar >= MAX_STAR) { cm.sendOk("该时装已达到最高星级（" + MAX_STAR + "）！"); cm.dispose(); return; }
 
+            var currentCost = selectedMode === 1 ? GUARANTEE_COST : SUCCESS_COST;
             var playerCash = cm.getPlayer().getCashShop().getCash(1);
-            if (playerCash < SUCCESS_COST) { cm.sendOk("点券不足，升星需要 " + SUCCESS_COST + " 点券。"); cm.dispose(); return; }
+            if (playerCash < currentCost) { cm.sendOk("点券不足，升星需要 " + currentCost + " 点券。"); cm.dispose(); return; }
 
-            cm.sendYesNo("确定要对 #v" + item.getItemId() + "##z" + item.getItemId() + "# 进行升星吗？将消耗 " + SUCCESS_COST + " 点券，失败装备将消失。当前星级：" + curStar + "\r\n确定要继续？");
+            if (selectedMode === 1) {
+                cm.sendYesNo("确定要对 #v" + item.getItemId() + "##z" + item.getItemId() + "# 进行必成升星吗？将消耗 " + currentCost + " 点券，必定成功。当前星级：" + curStar + "\r\n确定要继续？");
+            } else {
+                cm.sendYesNo("确定要对 #v" + item.getItemId() + "##z" + item.getItemId() + "# 进行升星吗？将消耗 " + currentCost + " 点券，失败装备将消失。当前星级：" + curStar + "\r\n确定要继续？");
+            }
             break;
 
         case 3:
@@ -115,11 +155,12 @@ function action(mode, type, selection) {
             var target = inv2.getItem(selectedSlot);
             if (!target || !isFashion(target)) { cm.sendOk("位置异常或物品发生变化，请重新操作。"); cm.dispose(); return; }
 
+            var cost = selectedMode === 1 ? GUARANTEE_COST : SUCCESS_COST;
             // 扣除点券
-            cm.getPlayer().getCashShop().gainCash(1, -SUCCESS_COST);
+            cm.getPlayer().getCashShop().gainCash(1, -cost);
 
             // 判定成功/失败
-            var success = Math.random() < successRate;
+            var success = selectedMode === 1 ? true : (Math.random() < successRate);
 
             if (success) {
                 // 随机 0~2 加到 全属性 (STR/DEX/INT/LUK/WATK/MATK)
@@ -161,7 +202,7 @@ function action(mode, type, selection) {
                     InventoryManipulator.removeFromSlot(cm.getClient(), InventoryType.EQUIP, target.getPosition(), 1, false);
                 } catch (e) {
                     // 兜底：若发生异常再尝试直接移除并刷新
-                    try { inv2.removeItem(selectedSlot); } catch (e2) {}
+                    try { inv2.removeItem(selectedSlot); } catch (e2) { }
                 }
                 cm.sendOk("很遗憾，升星失败，装备已消失。");
                 cm.dispose();

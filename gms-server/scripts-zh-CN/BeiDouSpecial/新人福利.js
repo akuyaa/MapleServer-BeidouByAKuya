@@ -36,7 +36,7 @@ function action(mode, type, selection)
 		{
 			//第二层对话
 		    cm.saveOrUpdateCharacterExtendValue("新人福利礼包", "已领取");
-		    cm.gainItem(2430033,10);
+		    cm.gainItem(2430033,1);
 		    cm.sendOk("恭喜您获得新手奖励，祝您游戏愉快！");
 		    cm.dispose();			
 		}

@@ -1,4 +1,4 @@
-/**北斗脚本
+﻿/**北斗脚本
 
 签到脚本
 
@@ -33,7 +33,13 @@ function action(mode, type, selection)
 			{
 			    cm.saveOrUpdateCharacterExtendValue("每日签到", "TRUE",true);
 			    cm.sendOk("签到成功");
-				cm.gainItem(2430033,1);
+			    var level = cm.getLevel();
+			    if (level > 150) {
+			        cm.gainItem(5211060, 1);
+				cm.gainItem(2450018, 8);
+			    } else {
+			        cm.gainItem(2450018, 8);
+			    }
 			    cm.dispose();				
 			}
 	    }
