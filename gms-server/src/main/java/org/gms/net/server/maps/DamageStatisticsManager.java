@@ -1,4 +1,4 @@
-package org.gms.server.maps;
+package org.gms.net.server.maps;
 
 import org.gms.client.Character;
 import org.gms.net.opcodes.SendOpcode;
@@ -7,6 +7,7 @@ import org.gms.net.packet.Packet;
 import org.gms.scripting.event.EventInstanceManager;
 import org.gms.util.PacketCreator;
 import org.gms.server.TimerManager;
+import org.gms.server.maps.MapleMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
