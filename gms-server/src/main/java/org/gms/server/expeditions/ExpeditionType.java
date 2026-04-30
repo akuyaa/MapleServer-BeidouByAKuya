@@ -38,6 +38,7 @@ public enum ExpeditionType {
     HORNTAIL(6, 30, 120, 255, 5),
     CHAOS_ZAKUM(6, 30, 120, 255, 5),
     CHAOS_HORNTAIL(6, 30, 120, 255, 5),
+    VON_LEON(6, 30, 120, 255, 5),
     ARIANT(2, 7, 20, 30, 5),
     ARIANT1(2, 7, 20, 30, 5),
     ARIANT2(2, 7, 20, 30, 5),

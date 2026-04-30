@@ -80,6 +80,29 @@ public class MobSkillFactory {
 
             Data skillData = skillRoot.getChildByPath("%d/level/%d".formatted(type.getId(), level));
             if (skillData == null) {
+                Data levelRoot = skillRoot.getChildByPath("%d/level".formatted(type.getId()));
+                if (levelRoot != null) {
+                    int fallbackLevel = Integer.MAX_VALUE;
+                    for (Data levelData : levelRoot.getChildren()) {
+                        try {
+                            int candidate = Integer.parseInt(levelData.getName());
+                            if (candidate == 1) {
+                                fallbackLevel = 1;
+                                break;
+                            }
+                            if (candidate < fallbackLevel) {
+                                fallbackLevel = candidate;
+                            }
+                        } catch (NumberFormatException ignore) {
+                        }
+                    }
+
+                    if (fallbackLevel != Integer.MAX_VALUE) {
+                        skillData = levelRoot.getChildByPath(String.valueOf(fallbackLevel));
+                    }
+                }
+            }
+            if (skillData == null) {
                 return Optional.empty();
             }
 
@@ -91,7 +114,7 @@ public class MobSkillFactory {
                 }
                 toSummon.add(DataTool.getInt(skillData.getChildByPath(String.valueOf(i)), 0));
             }
-            int effect = DataTool.getInt("summonEffect", skillData, 0);
+            int spawnEffect = DataTool.getInt("summonEffect", skillData, 0);
             int hp = DataTool.getInt("hp", skillData, 100);
             int x = DataTool.getInt("x", skillData, 1);
             int y = DataTool.getInt("y", skillData, 1);
@@ -113,6 +136,7 @@ public class MobSkillFactory {
 
             MobSkill loadedMobSkill = new MobSkill.Builder(type, level)
                     .mpCon(mpCon)
+            .spawnEffect(spawnEffect)
                     .toSummon(toSummon)
                     .cooltime(cooltime)
                     .duration(duration)

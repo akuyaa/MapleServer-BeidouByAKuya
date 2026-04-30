@@ -52,6 +52,7 @@ public class ExpeditionBossLog {
         YAO_SENG(1, 1, false),
         SHOWA(1, 1, false),
         TIAN_HUANG(1, 1, false),
+        VON_LEON(1, 1, false),
         BALROG_NORMAL(1, 1, false),
         BALROG_EASY(1, 1, false),
         KREXEL(1, 1, false);

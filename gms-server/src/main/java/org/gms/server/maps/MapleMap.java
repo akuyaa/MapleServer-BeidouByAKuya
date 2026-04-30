@@ -1405,7 +1405,7 @@ public class MapleMap {
     }
 
     // 品克缤(PinkBean)讨伐胜利广播
-    public void broadcastPinkBeanVictory() {
+    public void     broadcastPinkBeanVictory() {
         getWorldServer().dropMessage(6, "[远征凯旋] 彩虹乐园的混乱终于平息！致那些勇敢面对品克缤疯狂挑战的远征队，欢笑重归！你们是乐园真正的守护者！");
         // 品克缤对应的地图ID是270050100
         String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(270050100);
@@ -1419,6 +1419,16 @@ public class MapleMap {
         getWorldServer().dropMessage(6, "[远征凯旋] 时光的混乱终于被终结！致那些穿越时间裂缝击败帕普拉图斯的远征队，秩序恢复！你们是时间的守护者！");
         // 帕普拉图斯对应的地图ID是220080001
         String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(220080001);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
+    // 班.雷昂(Von Leon)讨伐胜利广播
+    public void broadcastVonLeonVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 班.雷昂的威胁终于被终结！致那些闯入其王座击败这位传奇领主的远征队，荣耀永存！");
+        // 班.雷昂对应的地图ID是211070100
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(211070100);
         if (damageDisplay != null && !damageDisplay.isEmpty()) {
             getWorldServer().dropMessage(5, damageDisplay);
         }
@@ -2706,8 +2716,10 @@ public class MapleMap {
                 spawnPoints.add(portal);
             }
         }
-        Portal portal = spawnPoints.get(new Random().nextInt(spawnPoints.size()));
-        return portal != null ? portal : getPortal(0);
+        if (spawnPoints.isEmpty()) {
+            return getPortal(0);
+        }
+        return spawnPoints.get(new Random().nextInt(spawnPoints.size()));
     }
 
     public Portal findClosestTeleportPortal(Point from) {
@@ -2733,7 +2745,7 @@ public class MapleMap {
                 shortestDistance = distance;
             }
         }
-        return closest;
+        return closest != null ? closest : getPortal(0);
     }
 
     public Portal findClosestPortal(Point from) {
