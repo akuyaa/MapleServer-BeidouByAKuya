@@ -296,25 +296,25 @@
         </plugins>
         <!-- 添加这行：把额外目录作为资源 -->
         <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-            <resource>
-                <directory>scripts</directory>
-                <targetPath>scripts</targetPath>
-            </resource>
-            <resource>
-                <directory>scripts-zh-CN</directory>
-                <targetPath>scripts-zh-CN</targetPath>
-            </resource>
-            <resource>
-                <directory>wz</directory>
-                <targetPath>wz</targetPath>
-            </resource>
-            <resource>
-                <directory>wz-zh-CN</directory>
-                <targetPath>wz-zh-CN</targetPath>
-            </resource>
+<!--            <resource>-->
+<!--                <directory>src/main/resources</directory>-->
+<!--            </resource>-->
+<!--            <resource>-->
+<!--                <directory>scripts</directory>-->
+<!--                <targetPath>scripts</targetPath>-->
+<!--            </resource>-->
+<!--            <resource>-->
+<!--                <directory>scripts-zh-CN</directory>-->
+<!--                <targetPath>scripts-zh-CN</targetPath>-->
+<!--            </resource>-->
+<!--            <resource>-->
+<!--                <directory>wz</directory>-->
+<!--                <targetPath>wz</targetPath>-->
+<!--            </resource>-->
+<!--            <resource>-->
+<!--                <directory>wz-zh-CN</directory>-->
+<!--                <targetPath>wz-zh-CN</targetPath>-->
+<!--            </resource>-->
         </resources>
     </build>
 
