@@ -40,6 +40,7 @@ public class DamageStatisticsManager {
             551030200,  // Scarga
             702060000,  // YaoSeng
             541020800   // Krexel
+            , 211070100   // Von Leon
     );
 
     // Boss名称映射
@@ -47,7 +48,7 @@ public class DamageStatisticsManager {
     static {
         // 多地图副本Boss名称
         BOSS_NAMES.put(240060000, "暗黑龙王");
-        BOSS_NAMES.put(801040100, "广州黑龙");
+        BOSS_NAMES.put(801040100, "大头头");
 
         // 单地图Boss名称
         BOSS_NAMES.put(280030000, "扎昆");
@@ -57,6 +58,7 @@ public class DamageStatisticsManager {
         BOSS_NAMES.put(551030200, "心疤狮王与熊");
         BOSS_NAMES.put(702060000, "武林妖僧");
         BOSS_NAMES.put(541020800, "克雷塞尔");
+        BOSS_NAMES.put(211070100, "班雷昂");
     }
 
     // 生成所有支持的地图ID
