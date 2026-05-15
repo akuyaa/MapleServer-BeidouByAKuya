@@ -55,7 +55,9 @@ public class ExpeditionBossLog {
         VON_LEON(1, 1, false),
         BALROG_NORMAL(1, 1, false),
         BALROG_EASY(1, 1, false),
-        KREXEL(1, 1, false);
+        KREXEL(1, 1, false),
+        // Cygnus (希纳斯)
+        CYGNUS(1, 1, false);
 
         private final int entries;
         private final int timeLength;

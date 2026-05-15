@@ -372,8 +372,11 @@ public class SkillFactory {
             }
         }
 
-        for (Data level : data.getChildByPath("level")) {
-            ret.addLevelEffect(StatEffect.loadSkillEffectFromData(level, id, isBuff));
+        Data levels = data.getChildByPath("level");
+        if (levels != null) {
+            for (Data level : levels) {
+                ret.addLevelEffect(StatEffect.loadSkillEffectFromData(level, id, isBuff));
+            }
         }
         ret.setAnimationTime(0);
         if (effect != null) {

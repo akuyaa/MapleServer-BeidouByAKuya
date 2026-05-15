@@ -34,6 +34,7 @@ public enum ExpeditionType {
     SCARGA(6, 30, 90, 255, 5),
     SHOWA(3, 30, 120, 255, 5),
     ZAKUM(6, 30, 50, 255, 5),
+    CYGNUS(2, 30, 120, 255, 5),
     KREXEL(6, 30, 120, 255, 5),
     HORNTAIL(6, 30, 120, 255, 5),
     CHAOS_ZAKUM(6, 30, 120, 255, 5),

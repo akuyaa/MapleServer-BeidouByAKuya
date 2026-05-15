@@ -41,6 +41,7 @@ public class DamageStatisticsManager {
             702060000,  // YaoSeng
             541020800   // Krexel
             , 211070100   // Von Leon
+        , 271040100   // Cygnus (希纳斯)
     );
 
     // Boss名称映射
@@ -59,6 +60,8 @@ public class DamageStatisticsManager {
         BOSS_NAMES.put(702060000, "武林妖僧");
         BOSS_NAMES.put(541020800, "克雷塞尔");
         BOSS_NAMES.put(211070100, "班雷昂");
+    // Cygnus (希纳斯)
+    BOSS_NAMES.put(271040100, "希纳斯");
     }
 
     // 生成所有支持的地图ID

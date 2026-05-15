@@ -1384,6 +1384,16 @@ public class MapleMap {
         }
     }
 
+    // 希纳斯(Cygnus)讨伐胜利广播
+    public void broadcastCygnusVictory() {
+        getWorldServer().dropMessage(6, "[远征凯旋] 骑士团要塞的皇后之怒被平息！致那些勇敢挑战希纳斯的远征队：胜利属于你们！");
+        // 希纳斯对应的地图ID是271040100
+        String damageDisplay = org.gms.server.maps.DamageStatisticsManager.getInstance().getFinalDamageDisplay(271040100);
+        if (damageDisplay != null && !damageDisplay.isEmpty()) {
+            getWorldServer().dropMessage(5, damageDisplay);
+        }
+    }
+
     // 武林妖僧(YaoSeng)讨伐胜利广播（嵩山少林）
     public void broadcastYaoSengVictory() {
         getWorldServer().dropMessage(6, "[远征凯旋] 嵩山少林寺的千年古刹终得清净！致那些历经恶战破除邪咒的远征队，佛光再现！你们是武林真正的正道之光！");

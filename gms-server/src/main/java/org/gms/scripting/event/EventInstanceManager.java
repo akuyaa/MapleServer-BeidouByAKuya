@@ -849,6 +849,15 @@ public class EventInstanceManager {
         return getMapFactory().getMap(mapid);
     }
 
+    /**
+     * Bridge method expected by legacy event scripts: setInstanceMap(mapId)
+     * Provide the same behavior as getMapInstance which ensures the map
+     * is marked with this EventInstance and any setup hooks are executed.
+     */
+    public final MapleMap setInstanceMap(final int mapid) {
+        return getMapInstance(mapid);
+    }
+
     public final boolean disposeIfPlayerBelow(final byte size, final int towarp) {
         if (disposed) {
             return true;
